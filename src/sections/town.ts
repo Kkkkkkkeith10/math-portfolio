@@ -17,7 +17,7 @@ export function initTown(): void {
   host.innerHTML = `<div class="town">
     <div class="town-places">${PLACES.map((p) => `
       <article class="town-card">
-        <div class="town-scene" data-scene="${p.scene}" role="img" aria-label="${p.title}, a low-poly 3D scene you can drag to turn"><span class="town-drag" aria-hidden="true">⟲ Drag</span></div>
+        <div class="town-scene" data-scene="${p.scene}" data-title="${p.title}" role="group" aria-label="${p.title}, a low-poly 3D scene you can drag to turn"><span class="town-drag" aria-hidden="true">↔ Drag to turn</span></div>
         <div class="town-card__body"><div class="town-card__top"><h3>${p.title}</h3><span class="town-skill">${p.skill}</span></div><p>${p.task}</p></div>
       </article>`).join("")}
     </div>

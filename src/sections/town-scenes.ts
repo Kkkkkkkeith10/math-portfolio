@@ -1,280 +1,195 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { buildTownModel, type SceneName, type TownKit } from "./town-models";
 
-export type SceneName = "dam" | "market" | "bakery";
+export type { SceneName } from "./town-models";
 export interface Diorama { destroy(): void }
-
-interface Kit {
-  root: THREE.Group;
-  mat(c: string): THREE.MeshStandardMaterial;
-  track(g: THREE.BufferGeometry): void;
-  box(p: THREE.Object3D, c: string, x: number, y: number, z: number, sx: number, sy: number, sz: number): THREE.Mesh;
-  cyl(p: THREE.Object3D, c: string, x: number, y: number, z: number, rt: number, rb: number, h: number, sides?: number): THREE.Mesh;
-  ball(p: THREE.Object3D, c: string, x: number, y: number, z: number, r: number): THREE.Mesh;
-  rock(p: THREE.Object3D, c: string, x: number, y: number, z: number, s: number): THREE.Mesh;
-  person(p: THREE.Object3D, shirt: string, hat: string, x: number, z: number, turn: number): THREE.Group;
-}
-interface Built { tick?(t: number): void }
-
-const GRASS = "#9cc98a";
-const SOIL = "#c7a37a";
-const CREAM = "#f4e8cf";
-const TEAL = "#5b9f93";
-const TERRA = "#c97556";
-const GOLD = "#f2c14e";
-
-function base(k: Kit, top = GRASS): void {
-  k.box(k.root, SOIL, 0, -0.35, 0, 6.4, 0.7, 6.4);
-  k.box(k.root, top, 0, 0.05, 0, 6.4, 0.12, 6.4);
-}
-
-const BUILD: Record<SceneName, (k: Kit) => Built> = {
-  dam(k) {
-    base(k);
-    // Reservoir behind the wall, river in front.
-    k.box(k.root, "#6fb7d6", 0, 0.14, -2.2, 6.2, 0.1, 1.9);
-    const river = k.box(k.root, "#8fcbe3", 0.2, 0.13, 1.7, 1.1, 0.06, 3);
-    k.rock(k.root, "#a9b49c", -2.7, 0.6, -0.8, 0.9);
-    k.rock(k.root, "#b8c2a8", 2.8, 0.55, -0.9, 0.8);
-    // Dam wall with a gap in the middle.
-    k.box(k.root, "#d9d3c4", -1.55, 0.75, -1, 2.5, 1.3, 0.6);
-    k.box(k.root, "#d9d3c4", 1.85, 0.75, -1, 1.9, 1.3, 0.6);
-    k.box(k.root, "#b9b2a2", 0.2, 0.25, -1, 0.8, 0.3, 0.6);
-    const drops: THREE.Mesh[] = [];
-    for (let i = 0; i < 5; i += 1) drops.push(k.box(k.root, "#9ad3ea", 0.05 + (i % 3) * 0.15, 0.6, -0.6, 0.12, 0.25, 0.12));
-    // Plank with ruler marks, waiting to be measured.
-    const plank = new THREE.Group();
-    plank.position.set(1.5, 0.22, 1.3);
-    plank.rotation.y = -0.4;
-    k.root.add(plank);
-    k.box(plank, "#e3b267", 0, 0, 0, 1.6, 0.14, 0.4);
-    for (let i = 0; i < 9; i += 1) k.box(plank, "#7a5432", -0.72 + i * 0.18, 0.08, -0.12, 0.03, 0.02, i % 2 ? 0.1 : 0.18);
-    k.person(k.root, TERRA, "#f2d49f", -1.2, 1.2, 0.5);
-    k.cyl(k.root, "#e8e1cc", -2.2, 0.35, 2.1, 0.25, 0.3, 0.5, 6);
-    return {
-      tick(t) {
-        drops.forEach((d, i) => {
-          const p = (t * 0.9 + i / drops.length) % 1;
-          d.position.set(0.05 + (i % 3) * 0.15, 0.75 - p * 0.55, -0.62 + p * 0.5);
-        });
-        (river.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.1 + 0.05 * Math.sin(t * 3);
-        plank.position.y = 0.22 + Math.sin(t * 2) * 0.03;
-      },
-    };
-  },
-
-  market(k) {
-    base(k, "#e8dcc2");
-    for (let x = -2; x <= 2; x += 1) for (let z = -2; z <= 2; z += 1) if ((x + z) % 2 === 0) k.box(k.root, "#ddcfb2", x * 1.2, 0.12, z * 1.2, 1.18, 0.02, 1.18);
-    const stall = new THREE.Group();
-    stall.position.set(-0.3, 0, -0.6);
-    k.root.add(stall);
-    k.box(stall, "#b98a5e", 0, 0.55, 0, 3, 0.9, 1);
-    k.box(stall, "#a0744c", 0, 1.02, 0, 3.1, 0.08, 1.1);
-    for (const x of [-1.45, 1.45]) k.box(stall, "#8b6342", x, 1.45, -0.45, 0.1, 1.8, 0.1);
-    for (let i = 0; i < 6; i += 1) k.box(stall, i % 2 ? CREAM : TERRA, -1.25 + i * 0.5, 2.35, -0.1, 0.5, 0.08, 1.4).rotation.x = 0.25;
-    const fruit = ["#f08a3c", "#e2483d", "#9fcd5a"];
-    for (let c = 0; c < 3; c += 1) {
-      k.box(stall, "#d6a873", -1 + c, 1.18, 0.1, 0.8, 0.25, 0.6);
-      for (let i = 0; i < 6; i += 1) k.ball(stall, fruit[c]!, -1.25 + c + (i % 3) * 0.25, 1.38, -0.05 + Math.floor(i / 3) * 0.25, 0.12);
-    }
-    k.box(stall, CREAM, 0, 1.9, 0.5, 1.2, 0.4, 0.06);
-    k.box(stall, TEAL, 0, 1.9, 0.53, 0.5, 0.12, 0.02);
-    const coins = new THREE.Group();
-    coins.position.set(1.6, 0, 1.1);
-    k.root.add(coins);
-    for (let i = 0; i < 5; i += 1) k.cyl(coins, GOLD, 0, 0.2 + i * 0.09, 0, 0.28, 0.28, 0.08, 10);
-    const spin = k.cyl(k.root, GOLD, 1.6, 1.2, 1.1, 0.3, 0.3, 0.07, 12);
-    spin.rotation.x = Math.PI / 2;
-    k.person(k.root, TEAL, "#24483a", -0.4, 0.9, Math.PI);
-    k.person(k.root, "#e7b04a", TERRA, 0.7, 1.9, Math.PI + 0.6);
-    return { tick(t) { spin.rotation.z = t * 2.5; spin.position.y = 1.2 + Math.sin(t * 3) * 0.08; } };
-  },
-
-  bakery(k) {
-    base(k, "#cfe3c0");
-    k.box(k.root, "#f0dfc0", 0, 0.75, 0, 2.6, 0.12, 1.8);
-    for (const [x, z] of [[-1.1, -0.7], [1.1, -0.7], [-1.1, 0.7], [1.1, 0.7]] as const) k.box(k.root, "#b98a5e", x, 0.4, z, 0.12, 0.65, 0.12);
-    const cake = new THREE.Group();
-    cake.position.set(0, 0.82, 0);
-    k.root.add(cake);
-    const slices: THREE.Mesh[] = [];
-    for (let i = 0; i < 8; i += 1) {
-      const geo = new THREE.CylinderGeometry(0.75, 0.75, 0.42, 6, 1, false, (i * Math.PI) / 4, Math.PI / 4 - 0.04);
-      const s = new THREE.Mesh(geo, k.mat(i % 2 ? "#f6c6cf" : "#f3d9a4"));
-      k.track(geo);
-      s.position.y = 0.21;
-      s.castShadow = true;
-      cake.add(s);
-      slices.push(s);
-    }
-    k.cyl(cake, "#fff6ea", 0, 0.45, 0, 0.72, 0.72, 0.05, 16);
-    k.ball(cake, "#e2483d", 0, 0.55, 0, 0.1);
-    for (let i = 0; i < 4; i += 1) k.cyl(k.root, "#ffffff", -0.9 + i * 0.6, 0.83, 0.75, 0.2, 0.2, 0.03, 12);
-    for (let i = 0; i < 5; i += 1) {
-      k.box(k.root, "#6b5a48", -2 + i, 2.2, -2.2, 0.03, 0.5, 0.03);
-      k.ball(k.root, i % 2 ? TERRA : GOLD, -2 + i, 1.9, -2.2, 0.2);
-    }
-    k.box(k.root, "#6b5a48", 0, 2.45, -2.2, 4.4, 0.03, 0.03);
-    k.person(k.root, "#f6c6cf", CREAM, 1.9, 0.9, -0.9);
-    k.person(k.root, TEAL, "#e7b04a", -2, 1.2, 0.9);
-    return {
-      tick(t) {
-        const p = (Math.sin(t * 1.6) + 1) / 2;
-        const a = Math.PI / 8;
-        slices[1]!.position.set(Math.sin(a + Math.PI / 4) * p * 0.35, 0.21 + p * 0.1, Math.cos(a + Math.PI / 4) * p * 0.35);
-      },
-    };
-  },
-};
-
-const ZOOM: Record<SceneName, number> = { dam: 3.5, market: 3.7, bakery: 3.4 };
 
 export function mountDiorama(host: HTMLElement, name: SceneName): Diorama {
   let renderer: THREE.WebGLRenderer;
-  try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  } catch {
-    host.classList.add("is-flat");
-    return { destroy: () => undefined };
-  }
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" }); }
+  catch { host.classList.add("is-flat"); return { destroy: () => undefined }; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.15;
   const canvas = renderer.domElement;
   canvas.style.cssText = "display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab";
+  canvas.tabIndex = 0;
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", `${host.dataset.title ?? name}. Drag or use the left and right arrow keys to turn the model; Home resets the view.`);
   host.append(canvas);
-
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 80);
-  camera.position.set(11, 10, 11);
-  camera.lookAt(0, 0.9, 0);
+  const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, .1, 80);
+  camera.position.set(10, 15, 12.5);
+  camera.lookAt(0, 1, 0);
   scene.add(new THREE.HemisphereLight("#fff6df", "#829b85", 2));
-  const sun = new THREE.DirectionalLight("#ffefcc", 2.6);
-  sun.position.set(-5, 12, 8);
+  scene.add(new THREE.AmbientLight("#fff1da", .35));
+  const sun = new THREE.DirectionalLight("#ffefcc", 3);
+  sun.position.set(-5, 12.5, 8.75);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
-  Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 });
-  sun.shadow.normalBias = 0.04;
+  Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 30 });
+  sun.shadow.normalBias = .025;
+  sun.shadow.bias = -.0002;
+  sun.shadow.radius = 4;
+  sun.shadow.blurSamples = 8;
   scene.add(sun);
-
   const disposables = new Set<{ dispose(): void }>();
   const materials = new Map<string, THREE.MeshStandardMaterial>();
-  const mat = (c: string): THREE.MeshStandardMaterial => {
-    let m = materials.get(c);
-    if (!m) { m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, flatShading: true, emissive: c, emissiveIntensity: 0.04 }); materials.set(c, m); disposables.add(m); }
-    return m;
+  const geometries = new Map<string, THREE.BufferGeometry>();
+  const mat = (color: string): THREE.MeshStandardMaterial => {
+    let material = materials.get(color);
+    if (!material) {
+      material = new THREE.MeshStandardMaterial({ color, roughness: .92, metalness: 0, flatShading: true });
+      materials.set(color, material); disposables.add(material);
+    }
+    return material;
   };
+  const track = (geometry: THREE.BufferGeometry): void => { disposables.add(geometry); };
   const unitBox = new THREE.BoxGeometry(1, 1, 1);
   const sphere = new THREE.IcosahedronGeometry(1, 0);
-  const dodeca = new THREE.DodecahedronGeometry(1, 0);
-  disposables.add(unitBox); disposables.add(sphere); disposables.add(dodeca);
-  const place = (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number): THREE.Mesh => {
-    const m = new THREE.Mesh(g, mat(c));
-    m.position.set(x, y, z);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    p.add(m);
-    return m;
+  const rock = new THREE.DodecahedronGeometry(1, 0);
+  [unitBox, sphere, rock].forEach(track);
+  const place = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number): THREE.Mesh => {
+    const mesh = new THREE.Mesh(geometry, mat(color));
+    mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh);
+    return mesh;
   };
   const root = new THREE.Group();
   scene.add(root);
-  const kit: Kit = {
-    root,
-    mat,
-    track: (g) => { disposables.add(g); },
-    box: (p, c, x, y, z, sx, sy, sz) => { const m = place(p, unitBox, c, x, y, z); m.scale.set(sx, sy, sz); return m; },
-    cyl: (p, c, x, y, z, rt, rb, h, sides = 8) => { const g = new THREE.CylinderGeometry(rt, rb, h, sides); disposables.add(g); return place(p, g, c, x, y, z); },
-    ball: (p, c, x, y, z, r) => { const m = place(p, sphere, c, x, y, z); m.scale.setScalar(r); return m; },
-    rock: (p, c, x, y, z, s) => { const m = place(p, dodeca, c, x, y, z); m.scale.set(s * 1.3, s, s); return m; },
-    person(p, shirt, hat, x, z, turn) {
-      const g = new THREE.Group();
-      g.position.set(x, 0.14, z);
-      g.rotation.y = turn;
-      p.add(g);
-      kit.box(g, "#4b5563", -0.1, 0.22, 0, 0.14, 0.44, 0.16);
-      kit.box(g, "#4b5563", 0.1, 0.22, 0, 0.14, 0.44, 0.16);
-      kit.cyl(g, shirt, 0, 0.72, 0, 0.2, 0.3, 0.6, 7);
-      kit.ball(g, "#f2c9a0", 0, 1.22, 0, 0.26);
-      kit.cyl(g, hat, 0, 1.45, 0, 0.12, 0.38, 0.12, 8);
-      return g;
+  const kit: TownKit = {
+    root, mat, track,
+    box(parent, color, x, y, z, sx, sy, sz, radius) {
+      const bevel = Math.min(sx > 5 && sz > 5 ? radius ?? .06 : 0, Math.min(sx, sy, sz) * .24);
+      if (bevel < .015) { const mesh = place(parent, unitBox, color, x, y, z); mesh.scale.set(sx, sy, sz); return mesh; }
+      const key = [sx, sy, sz, bevel].join(":");
+      let geometry = geometries.get(key);
+      if (!geometry) { geometry = new RoundedBoxGeometry(sx, sy, sz, 2, bevel); geometries.set(key, geometry); track(geometry); }
+      return place(parent, geometry, color, x, y, z);
+    },
+    cyl(parent, color, x, y, z, rt, rb, height, sides = 12) {
+      const key = ["cylinder", rt, rb, height, sides].join(":");
+      let geometry = geometries.get(key);
+      if (!geometry) { geometry = new THREE.CylinderGeometry(rt, rb, height, sides); geometries.set(key, geometry); track(geometry); }
+      return place(parent, geometry, color, x, y, z);
+    },
+    ball(parent, color, x, y, z, radius) { const mesh = place(parent, sphere, color, x, y, z); mesh.scale.setScalar(radius); return mesh; },
+    rock(parent, color, x, y, z, size) { const mesh = place(parent, rock, color, x, y, z); mesh.scale.set(size * 1.2, size * .85, size); mesh.rotation.set(.1, .35, -.08); return mesh; },
+    person(parent, shirt, hat, x, z, turn) {
+      const person = new THREE.Group();
+      person.position.set(x, .16, z); person.rotation.y = turn; parent.add(person);
+      for (const side of [-1, 1]) {
+        kit.box(person, "#46595a", side * .1, .25, 0, .14, .36, .16, .025);
+        kit.box(person, "#364948", side * .1, .08, .045, .16, .12, .24, .04);
+        const sleeve = kit.cyl(person, shirt, side * .25, .72, 0, .09, .09, .3, 8); sleeve.rotation.z = side * -.2;
+        const arm = kit.cyl(person, "#e9b790", side * .285, .5, .03, .065, .065, .21, 8); arm.rotation.z = side * -.15;
+        kit.ball(person, "#e9b790", side * .3, .39, .05, .07);
+      }
+      kit.cyl(person, shirt, 0, .68, 0, .2, .24, .52, 10);
+      kit.box(person, "#f1e5ce", 0, .61, .193, .29, .33, .035, .02);
+      kit.box(person, "#d0b997", 0, .58, .216, .15, .07, .018);
+      kit.cyl(person, "#e9b790", 0, 1.02, 0, .075, .075, .13, 10);
+      kit.ball(person, "#edc6a3", 0, 1.21, 0, .24);
+      kit.cyl(person, "#654736", 0, 1.36, -.035, .18, .22, .13, 10);
+      for (const side of [-1, 1]) {
+        kit.ball(person, "#edc6a3", side * .225, 1.2, 0, .05);
+        kit.ball(person, "#413c35", side * .075, 1.25, .216, .022);
+        kit.ball(person, "#dcaa8c", side * .12, 1.16, .2, .035);
+      }
+      kit.ball(person, "#e5b695", 0, 1.18, .238, .028);
+      kit.box(person, "#845945", 0, 1.12, .216, .055, .012, .012);
+      kit.cyl(person, hat, 0, 1.44, 0, .34, .34, .055, 12);
+      kit.cyl(person, hat, 0, 1.54, 0, .17, .21, .17, 10);
+      kit.cyl(person, "#aa7955", 0, 1.46, 0, .215, .215, .035, 10);
+      return person;
     },
   };
-  const built = BUILD[name](kit);
-
+  const built = buildTownModel(name, kit);
+  const groundGeometry = new THREE.PlaneGeometry(200, 200);
+  const shadowMaterial = new THREE.ShadowMaterial({ color: "#426b62", opacity: .14 });
+  track(groundGeometry); disposables.add(shadowMaterial);
+  const ground = new THREE.Mesh(groundGeometry, shadowMaterial);
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -.7; ground.receiveShadow = true;
+  scene.add(ground);
+  const corners: THREE.Vector3[] = [];
+  root.updateMatrixWorld(true);
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.geometry.computeBoundingBox();
+    const bounds = object.geometry.boundingBox!;
+    for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) corners.push(new THREE.Vector3(x, y, z).applyMatrix4(object.matrixWorld));
+  });
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   let angle = 0;
   let velocity = 0;
-  let dragging: { x: number; angle: number } | null = null;
+  let dragging: { x: number; angle: number; pointerId: number } | null = null;
   let visible = false;
   let frame = 0;
-  const start = performance.now();
-
+  let destroyed = false;
+  const started = performance.now();
+  const clampTurn = (value: number): number => THREE.MathUtils.clamp(value, -.65, .65);
   function resize(): void {
-    const w = host.clientWidth || 1;
-    const h = host.clientHeight || 1;
-    renderer.setSize(w, h, false);
-    const half = ZOOM[name];
-    const aspect = w / h;
-    Object.assign(camera, aspect >= 1 ? { left: -half * aspect, right: half * aspect, top: half, bottom: -half } : { left: -half, right: half, top: half / aspect, bottom: -half / aspect });
-    camera.updateProjectionMatrix();
-    draw(performance.now());
+    const width = host.clientWidth || 1;
+    const height = host.clientHeight || 1;
+    renderer.setSize(width, height, false);
+    const aspect = width / height;
+    camera.updateMatrixWorld();
+    const projected = corners.map((corner) => corner.clone().applyMatrix4(camera.matrixWorldInverse));
+    const minX = Math.min(...projected.map((p) => p.x));
+    const maxX = Math.max(...projected.map((p) => p.x));
+    const minY = Math.min(...projected.map((p) => p.y));
+    const maxY = Math.max(...projected.map((p) => p.y));
+    const half = Math.max((maxY - minY) / 2, (maxX - minX) / (2 * aspect)) * 1.08;
+    const centerY = (minY + maxY) / 2;
+    Object.assign(camera, { left: -half * aspect, right: half * aspect, top: half + centerY, bottom: -half + centerY });
+    camera.updateProjectionMatrix(); draw(performance.now());
   }
   function draw(now: number): void {
-    const t = (now - start) / 1000;
-    if (!reduced.matches) built.tick?.(t);
-    if (!dragging) {
-      angle += velocity;
-      velocity *= 0.93;
-      if (!reduced.matches && Math.abs(velocity) < 0.0005) angle += Math.sin(t * 0.4) * 0.0012;
-    }
-    root.rotation.y = angle;
+    const time = (now - started) / 1000;
+    if (!reduced.matches) built.tick?.(time);
+    if (!dragging) { angle = clampTurn(angle + velocity); velocity *= .88; }
+    root.rotation.y = angle + (!reduced.matches && !dragging ? Math.sin(time * .3) * .035 : 0);
+    host.dataset.rotation = angle.toFixed(3);
     renderer.render(scene, camera);
   }
   function loop(now: number): void {
     frame = 0;
+    if (destroyed) return;
     draw(now);
-    if (visible && !document.hidden && (!reduced.matches || dragging || Math.abs(velocity) > 0.0005)) frame = requestAnimationFrame(loop);
+    if (visible && !document.hidden && (!reduced.matches || dragging || Math.abs(velocity) > .0005)) frame = requestAnimationFrame(loop);
   }
-  const kick = (): void => { if (!frame) frame = requestAnimationFrame(loop); };
-
-  canvas.addEventListener("pointerdown", (e) => {
-    dragging = { x: e.clientX, angle };
-    canvas.setPointerCapture(e.pointerId);
-    canvas.style.cursor = "grabbing";
-    kick();
+  const kick = (): void => { if (!destroyed && !frame) frame = requestAnimationFrame(loop); };
+  canvas.addEventListener("pointerdown", (event) => {
+    dragging = { x: event.clientX, angle, pointerId: event.pointerId }; canvas.setPointerCapture(event.pointerId);
+    canvas.style.cursor = "grabbing"; host.classList.add("is-turned"); velocity = 0; kick();
   });
-  canvas.addEventListener("pointermove", (e) => {
-    if (!dragging) return;
-    const next = dragging.angle + (e.clientX - dragging.x) * 0.012;
-    velocity = next - angle;
-    angle = next;
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging || dragging.pointerId !== event.pointerId) return;
+    const next = clampTurn(dragging.angle + (event.clientX - dragging.x) * .006);
+    velocity = next - angle; angle = next; kick();
   });
   const release = (): void => { dragging = null; canvas.style.cursor = "grab"; kick(); };
-  canvas.addEventListener("pointerup", release);
-  canvas.addEventListener("pointercancel", release);
-
-  const io = new IntersectionObserver((entries) => {
-    visible = entries.some((e) => e.isIntersecting);
-    if (visible) kick();
+  canvas.addEventListener("pointerup", release); canvas.addEventListener("pointercancel", release); canvas.addEventListener("lostpointercapture", release);
+  canvas.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
+    event.preventDefault(); velocity = 0;
+    angle = event.key === "Home" ? 0 : clampTurn(angle + (event.key === "ArrowLeft" ? -.12 : .12)); kick();
+  });
+  const observer = new IntersectionObserver((entries) => {
+    visible = entries.some((entry) => entry.isIntersecting);
+    if (visible) kick(); else if (frame) { cancelAnimationFrame(frame); frame = 0; }
   }, { rootMargin: "80px" });
-  io.observe(host);
-  const ro = new ResizeObserver(resize);
-  ro.observe(host);
-  const onVis = (): void => { if (!document.hidden) kick(); };
-  document.addEventListener("visibilitychange", onVis);
-  resize();
-
-  return {
-    destroy() {
-      cancelAnimationFrame(frame);
-      io.disconnect();
-      ro.disconnect();
-      document.removeEventListener("visibilitychange", onVis);
-      disposables.forEach((d) => d.dispose());
-      renderer.dispose();
-      canvas.remove();
-    },
-  };
+  observer.observe(host);
+  const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(host);
+  const onVisibility = (): void => { if (!document.hidden && visible) kick(); else if (frame) { cancelAnimationFrame(frame); frame = 0; } };
+  const onMotion = (): void => { velocity = 0; kick(); };
+  document.addEventListener("visibilitychange", onVisibility); reduced.addEventListener("change", onMotion); resize();
+  return { destroy() {
+    destroyed = true; cancelAnimationFrame(frame); observer.disconnect(); resizeObserver.disconnect();
+    document.removeEventListener("visibilitychange", onVisibility); reduced.removeEventListener("change", onMotion);
+    disposables.forEach((item) => item.dispose()); renderer.dispose(); canvas.remove();
+  } };
 }
