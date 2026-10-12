@@ -1,21 +1,24 @@
 import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { reduced } from "../motion";
+
+gsap.registerPlugin(ScrollTrigger);
 
 type Mode = "paper" | "live";
 
 const TOTAL = 30;
-// Which students are stuck, and on what. Illustrative.
+// Which students are stuck, and on what. Same class exercise as the teacher board: the 8 cm × 6 cm rectangle.
+const PERIMETER = "(8 + 6) × 2 = 28, the perimeter formula where area was needed";
+const ADDED = "8 + 6 = 14, adding where area needs 8 × 6";
 const STUCK: Record<number, string> = {
-  2: "adding fractions with different denominators",
-  5: "comparing decimals",
-  9: "finding the area of a rectangle",
-  13: "adding fractions with different denominators",
-  17: "place value in decimals",
-  22: "converting between units of length",
-  27: "comparing decimals",
+  2: PERIMETER,
+  5: ADDED,
+  9: PERIMETER,
+  13: ADDED,
+  17: PERIMETER,
+  22: PERIMETER,
+  27: ADDED,
 };
-
-const NOTE_DEFAULT = "Press “Hand in the work”. Then tap any coral student to see what they got stuck on.";
 
 // Fixed shuffle so the live mode feels like students submitting at different times.
 const LIVE_ORDER = [14, 3, 22, 8, 27, 0, 18, 11, 25, 5, 16, 1, 29, 9, 20, 6, 13, 24, 2, 17, 28, 10, 21, 4, 15, 26, 7, 19, 12, 23];
@@ -30,12 +33,13 @@ function clockText(mode: Mode, p: number): string {
 }
 
 export function initClassroom(): void {
+  const root = document.querySelector<HTMLElement>('[data-scene="sim"]');
   const wrap = document.getElementById("dots30");
   const clock = document.getElementById("clock");
   const run = document.getElementById("run") as HTMLButtonElement | null;
   const note = document.getElementById("sim-note");
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".sim [data-mode]"));
-  if (!wrap || !clock || !run || !note) return;
+  if (!root || !wrap || !clock || !run || !note) return;
 
   let mode: Mode = "paper";
   let tween: gsap.core.Tween | null = null;
@@ -59,13 +63,15 @@ export function initClassroom(): void {
     tween = null;
     revealed = 0;
     finished = false;
-    run!.disabled = false;
     dots.forEach((d, i) => {
       d.className = "stu";
       d.setAttribute("aria-label", `Student ${i + 1}, work not checked yet`);
     });
     clock!.textContent = clockText(mode, 0);
-    note!.textContent = NOTE_DEFAULT;
+    note!.textContent =
+      mode === "paper"
+        ? "Thirty notebooks to read, one at a time."
+        : "Thirty students writing. The board fills in as they hand in.";
   }
 
   function reveal(upTo: number): void {
@@ -76,7 +82,7 @@ export function initClassroom(): void {
       dots[idx].className = issue ? "stu stuck" : "stu ok";
       dots[idx].setAttribute(
         "aria-label",
-        issue ? `Student ${idx + 1} is stuck on ${issue}` : `Student ${idx + 1} is on track`,
+        issue ? `Student ${idx + 1} wrote ${issue}` : `Student ${idx + 1} is on track`,
       );
       revealed++;
     }
@@ -87,27 +93,23 @@ export function initClassroom(): void {
     const issue = STUCK[i];
     dots.forEach((d) => d.classList.remove("pick"));
     dots[i].classList.add("pick");
-    note!.textContent = issue
-      ? `Student ${i + 1} is stuck on ${issue}. (Illustrative.)`
-      : `Student ${i + 1} is on track.`;
+    note!.textContent = issue ? `Student ${i + 1} wrote ${issue}.` : `Student ${i + 1} is on track.`;
   }
 
   function done(): void {
     finished = true;
-    run!.disabled = false;
     const n = Object.keys(STUCK).length;
     note!.textContent =
       mode === "paper"
         ? `${n} students needed help, and the teacher finds out the next day, after the lesson has moved on.`
-        : `${n} students flagged in five minutes, while the lesson is still running. Tap a coral student to see why.`;
+        : `${n} students flagged in five minutes, while the lesson is still running. Tap a coral student to see the working.`;
   }
 
-  run.addEventListener("click", () => {
+  function play(): void {
     reset();
-    run.disabled = true;
     if (reduced()) {
       reveal(TOTAL);
-      clock.textContent = clockText(mode, 1);
+      clock!.textContent = clockText(mode, 1);
       done();
       return;
     }
@@ -118,23 +120,26 @@ export function initClassroom(): void {
       ease: mode === "paper" ? "none" : "power2.out",
       onUpdate: () => {
         reveal(Math.floor(state.p * TOTAL));
-        clock.textContent = clockText(mode, state.p);
+        clock!.textContent = clockText(mode, state.p);
       },
       onComplete: () => {
         reveal(TOTAL);
-        clock.textContent = clockText(mode, 1);
+        clock!.textContent = clockText(mode, 1);
         done();
       },
     });
-  });
+  }
 
+  run.addEventListener("click", play);
   tabs.forEach((t) =>
     t.addEventListener("click", () => {
       mode = (t.dataset.mode as Mode) ?? "paper";
       tabs.forEach((x) => x.setAttribute("aria-selected", String(x === t)));
-      reset();
+      play();
     }),
   );
 
   reset();
+  // Plays by itself the first time it is on screen.
+  ScrollTrigger.create({ trigger: root, start: "top 70%", once: true, onEnter: play });
 }

@@ -29,7 +29,7 @@ function setupScrollState(): void {
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>(".dots a"));
   const setActive = (id: string): void => {
     links.forEach((a) => a.classList.toggle("on", a.getAttribute("href") === `#${id}`));
-    document.body.classList.toggle("on-dark", id === "game");
+    document.body.classList.toggle("on-dark", Boolean(document.getElementById(id)?.classList.contains("section--dark")));
   };
   for (const link of links) {
     const id = link.getAttribute("href")?.slice(1);
