@@ -199,6 +199,29 @@ body.on-dark .dots a.on { border-color: var(--accent); }
 .stu.pick { outline: 3px solid var(--ink); outline-offset: 2px; }
 .sim__note { margin: 1.4rem 0 0; min-height: 3.2em; font-weight: 500; }
 
+.sim__top .mini { margin: 0; }
+.lanes { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 3vw, 2rem); }
+.lane { background: var(--paper); border-radius: 14px; padding: 1.1rem 1.2rem 1rem; border: 2px solid transparent; }
+.lane--live { border-color: var(--teal); background: var(--teal-soft); }
+.lane h3 { margin-bottom: 0.2rem; }
+.lane .dots30 { margin-top: 0.9rem; max-width: none; }
+.lane__note { margin: 0.9rem 0 0; min-height: 3em; font-weight: 500; font-size: 0.95rem; }
+.sim__detail { margin-top: 1.2rem; background: var(--paper); border-radius: 14px; padding: 1.1rem 1.3rem; min-height: 170px; }
+.sim__detail p { margin: 0 0 0.5rem; }
+.det__hint { color: var(--ink-soft); }
+.det__grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 3vw, 2rem); }
+.det__hand { position: relative; background-color: #fffef9; background-image: linear-gradient(to bottom, transparent 37px, #bcd6ea 37px, #bcd6ea 38px); background-size: 100% 38px; border-radius: 10px; padding: 0 1rem; box-shadow: inset 0 0 0 1px var(--line); }
+.det__hand div { min-height: 38px; font-family: var(--hand); font-size: 1.9rem; line-height: 38px; color: var(--hand-ink); }
+.det__hand .xmark { position: absolute; right: 1rem; bottom: 0.4rem; }
+.det__should { margin-top: 0.7rem !important; }
+.det__sym { font-size: 1.25rem; color: var(--accent); }
+.det__gap { margin-bottom: 0.3rem !important; }
+.det__gap em { font-size: 0.85rem; color: var(--ink-soft); }
+.det__mis { font-size: 0.92rem; color: var(--ink-soft); }
+.det__ok { color: var(--teal); font-weight: 600; }
+.det__who { font-size: 1.05rem; }
+.hwd { font-family: var(--hand); font-size: 1.8rem; color: var(--hand-ink); }
+
 /* ---- the error, in maths ---- */
 .diag__bar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .diag__grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 3vw, 2.2rem); margin-top: 0.4rem; }
@@ -372,7 +395,7 @@ body.on-dark .dots a.on { border-color: var(--accent); }
 
 /* responsive */
 @media (max-width: 900px) {
-  .panel__grid, .panel__grid--notebook, .panel__grid--garden, .diag__grid, .cards3 { grid-template-columns: 1fr; }
+  .lanes, .det__grid, .panel__grid, .panel__grid--notebook, .panel__grid--garden, .diag__grid, .cards3 { grid-template-columns: 1fr; }
   .rew__grid { grid-template-columns: repeat(2, 1fr); }
   .board__grid { grid-template-columns: repeat(5, 1fr); }
   .tree { grid-template-columns: 1fr; gap: 0.7rem; }
@@ -390,3 +413,20 @@ body.on-dark .dots a.on { border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* Portfolio composition */
+.site-nav{max-width:1160px;margin:auto;padding:1.4rem 2.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:.85rem;border-bottom:1px solid var(--line)}
+.site-nav>a{text-decoration:none;font-weight:650}.site-nav>a>span{color:var(--ink-soft);font-weight:400}.site-nav nav{display:flex;gap:1.8rem}.site-nav nav>a{text-decoration:none;font-size:.78rem}.site-nav nav>a:hover{color:var(--teal)}
+.hero{min-height:auto}.hero__layout{display:grid;grid-template-columns:1.15fr 1fr;gap:3rem;align-items:center;max-width:1160px;padding:5rem 2.5rem 5.5rem}.hero__title{font-size:clamp(2.4rem,4.5vw,4.2rem)}.hero__lede{font-size:1rem;line-height:1.75;margin:1.5rem 0}.hero__stats{gap:1.5rem;margin:1.7rem 0 2rem}.hero__stats b{font-size:1.8rem}.hero__stats span{font-size:.72rem}.hero__actions{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap}.hero__actions .btn{font-size:.8rem;padding:.75rem 1rem;background:var(--teal)}.hero__case-link{font-size:.77rem;text-decoration:none;font-weight:550}.hero__art{position:relative;margin:0;border-radius:24px;overflow:hidden;transform:rotate(2deg);box-shadow:0 28px 80px -40px #2c654060;background:#e5eddf}.hero__art img{display:block;width:100%;height:450px;object-fit:cover;object-position:55% center}.hero__art figcaption{position:absolute;bottom:1rem;left:1rem;right:1rem;background:#fffdf8ed;border-radius:12px;padding:.8rem 1rem;font:500 1rem var(--serif)}.hero__art figcaption>span{display:block;font:650 .6rem var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:.25rem}
+.section--game{padding-top:3.5rem;max-width:1160px}.section--game>.section__head{max-width:1040px;margin-left:auto;margin-right:auto}.section__head h2{max-width:25ch}.section__head .lead{font-size:1rem;line-height:1.75}.experience-caption{font-size:.76rem;line-height:1.65;color:var(--ink-soft);max-width:85ch;margin:1.3rem 0 0}.experience-caption>span{font-size:.62rem;letter-spacing:.08em;font-weight:650;color:var(--teal);text-transform:uppercase;margin-right:.45rem}
+.bank-examples{margin-top:1.5rem}.bank-examples>summary{font-weight:550;font-size:.9rem;cursor:pointer;padding:1.2rem 1.4rem;background:#eeeee1;border:1px solid var(--line);border-radius:12px}.bank-examples>summary>span{float:right;color:var(--teal)}.bank-examples[open]>summary{margin-bottom:1rem}.bank-examples .fine{display:block}.bank-examples .diag__grid{opacity:1!important}.bank-examples .diag__grid>div{min-width:0}.bank-examples .read__tags{display:flex;flex-wrap:wrap}.bank-examples .tag--code{overflow-wrap:anywhere}.bank-examples .read__txt,.bank-examples .should{display:block}
+@media(max-width:950px){.hero__layout{gap:2rem;grid-template-columns:1.1fr 1fr}.hero__art img{height:400px}.hero__stats{gap:1rem}.hero__stats b{font-size:1.6rem}.hero__stats span{font-size:.68rem}}
+@media(max-width:760px){.hero__layout{grid-template-columns:1fr;padding:3rem 1.5rem;gap:2rem}.hero__title{font-size:clamp(2.6rem,7vw,4.2rem)}.hero__art{max-width:540px;transform:none}.hero__art img{height:330px}.site-nav{padding:1.1rem 1.5rem}.site-nav nav{gap:1rem}.section{padding-left:1.2rem;padding-right:1.2rem}.section--game{padding-top:2rem}.hero__stats{gap:1.5rem}}
+@media(max-width:420px){.site-nav>a>span{display:none}.site-nav nav{gap:.8rem}.hero__layout{padding-left:1.2rem;padding-right:1.2rem}.hero__stats{gap:1rem}.hero__stats b{font-size:1.6rem}.hero__art img{height:280px}}
+.lane__note { min-height: 0; }
+
+/* The opening introduces Keith; the game gets the full canvas below it. */
+.hero__layout{display:block;max-width:1080px;padding:4.5rem 1.5rem 4rem}.hero__copy{max-width:850px}.hero__title{font-size:clamp(2.8rem,6.5vw,5.5rem)}.hero__lede{font-size:1.05rem;max-width:64ch}.hero__stats{gap:2.5rem}.hero__stats b{font-size:2rem}
+.section--game{max-width:none;padding:2.5rem 0 3rem;margin:0}.section--game>.section__head{max-width:1080px;padding:0 1.5rem;margin:0 auto 2.4rem}.section--game>.experience-caption{max-width:1080px;padding:0 1.5rem;margin:1.2rem auto 0}
+@media(max-width:700px){.hero__layout{padding:3rem 1.2rem}.hero__title{font-size:clamp(2.4rem,8vw,3.6rem)}.hero__stats{gap:1.3rem}.hero__stats b{font-size:1.7rem}.section--game>.section__head,.section--game>.experience-caption{padding-left:1.2rem;padding-right:1.2rem}.section--game{padding-top:1.5rem}}
+body:has(.dots a[href="#game"].on) .dots{visibility:hidden}

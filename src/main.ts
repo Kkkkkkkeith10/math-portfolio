@@ -6,24 +6,18 @@ import "./style.css";
 
 import { initMotion } from "./motion";
 import { refreshOnLoad } from "./scene";
-import { initClassroom } from "./sections/classroom";
 import { initDiagnosis } from "./sections/diagnosis";
 import { initExperience } from "./sections/experience";
 import { initFunnel } from "./sections/funnel";
 import { initGame } from "./sections/game";
-import { initLoop } from "./sections/loop";
-import { initReward } from "./sections/reward";
-import { initStory } from "./sections/story";
-import { initTeacher } from "./sections/teacher";
+import { initKnowledge } from "./sections/knowledge";
+import { initLearningFlow } from "./sections/learning-flow";
 
 // Build every scene first, so scroll positions are measured against the final layout.
-initStory();
 initGame();
-initClassroom();
 initDiagnosis();
-initReward();
-initTeacher();
-initLoop();
+initKnowledge();
+initLearningFlow();
 initFunnel();
 initExperience();
 initMotion();

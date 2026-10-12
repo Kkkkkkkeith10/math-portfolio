@@ -2,7 +2,8 @@
  * A small slice of the real MathsAI data, for one topic only: 4M2 Area (I).
  *
  * Source: the private question bank (question-banks-dump/24-4/4M2_fixed.json) and the curriculum graph.
- * The full bank (46 questions and 63 catalogued errors for this topic alone) and the rest of the tree stay private.
+ * The current English-language 24-4 snapshot contains 46 questions and 64 common-error entries.
+ * The full question content and wider curriculum remain private; only this selected slice is published.
  * Only the entries below are published. Wording of descriptions and misconceptions is as written in the bank.
  */
 

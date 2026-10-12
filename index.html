@@ -6,12 +6,12 @@
     <title>Keith Lau · Product Architect, maths learning</title>
     <meta
       name="description"
-      content="An interactive walk-through: a maths game students play with a pen and notebook, errors shown in maths, rewards for children, and a teacher who sees every student at once."
+      content="Keith Lau’s product and engineering portfolio: a playable low-poly maths garden, the knowledge behind MathsAI and a platform adopted by 30+ paying schools."
     />
     <meta property="og:title" content="Keith Lau · Product Architect, maths learning" />
     <meta
       property="og:description"
-      content="From a rooftop-garden mission to a class board that shows all thirty students at once."
+      content="Play a rooftop garden mission, explore real misconception data, and see how I built MathsAI from classroom research to 30+ paying schools."
     />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#f6f1e7" />
@@ -28,296 +28,54 @@
     <nav class="dots" aria-label="Sections">
       <a href="#top" data-label="Start"><span class="sr">Start</span></a>
       <a href="#game" data-label="The game"><span class="sr">The game</span></a>
-      <a href="#catch" data-label="The catch"><span class="sr">The catch</span></a>
-      <a href="#error" data-label="The error, in maths"><span class="sr">The error, in maths</span></a>
-      <a href="#reward" data-label="The reward"><span class="sr">The reward</span></a>
-      <a href="#teacher" data-label="The teacher's view"><span class="sr">The teacher's view</span></a>
-      <a href="#loop" data-label="The loop"><span class="sr">The loop</span></a>
+      <a href="#error" data-label="Diagnosis & knowledge"><span class="sr">Diagnosis and knowledge</span></a>
+      <a href="#catch" data-label="The teacher view"><span class="sr">The teacher view</span></a>
+      <a href="#reward" data-label="The next challenge"><span class="sr">The next challenge</span></a>
+      <a href="#loop" data-label="What I built"><span class="sr">What I built</span></a>
       <a href="#proof" data-label="Into schools"><span class="sr">Into schools</span></a>
       <a href="#experience" data-label="Experience"><span class="sr">Experience</span></a>
       <a href="#contact" data-label="Contact"><span class="sr">Contact</span></a>
     </nav>
 
+    <div class="site-nav"><a href="#top">Keith Lau<span> / Selected work</span></a><nav aria-label="Main navigation"><a href="#game">Play</a><a href="#loop">My work</a><a href="#contact">Contact ↗</a></nav></div>
     <main id="main">
       <!-- HERO -->
       <header class="hero" id="top">
         <div class="hero__grid" aria-hidden="true"></div>
-        <div class="hero__inner">
-          <p class="eyebrow" data-hero>Keith Lau · Product Architect · Hong Kong</p>
-          <h1 class="hero__title" aria-label="Maths students pick up a pen for, and teachers can finally see.">
-            <span class="line"><span data-split>Maths students pick</span></span>
-            <span class="line"><span data-split>up a pen for,</span></span>
-            <span class="line"><span data-split><em>and teachers can see.</em></span></span>
-          </h1>
-          <p class="hero__lede" data-hero>
-            I built MathsAI, an adaptive maths platform used by 30+ paying schools. This page walks through the game I want
-            to build next: students write in a notebook, the map finds the exact gap, and the teacher sees all thirty
-            students at once. Every scene plays as you scroll, and each one has a replay button.
-          </p>
-          <div class="hero__stats" data-hero>
-            <div><b data-count="2000" data-suffix="+">2,000+</b><span>users in 18 months</span></div>
-            <div><b data-count="750000" data-prefix="~">~750,000</b><span>questions answered</span></div>
-            <div><b data-count="30" data-suffix="+">30+</b><span>paying schools</span></div>
+        <div class="hero__inner hero__layout">
+          <div class="hero__copy">
+            <p class="eyebrow" data-hero>Keith Lau · Product Architect · Hong Kong</p>
+            <h1 class="hero__title" aria-label="Maths students pick up a pen for, and teachers can see.">
+              <span class="line"><span data-split>Maths students pick</span></span>
+              <span class="line"><span data-split>up a pen for,</span></span>
+              <span class="line"><span data-split><em>and teachers can see.</em></span></span>
+            </h1>
+            <p class="hero__lede" data-hero>I built MathsAI, an adaptive maths platform used by 30+ paying schools. Play the garden, see how the system finds a learning gap, and watch how teachers can help during the lesson.</p>
+            <div class="hero__stats" data-hero>
+              <div><b data-count="2000" data-suffix="+">2,000+</b><span>users in 18 months</span></div>
+              <div><b data-count="750000" data-prefix="~">~750,000</b><span>questions answered</span></div>
+              <div><b data-count="30" data-suffix="+">30+</b><span>paying schools</span></div>
+            </div>
+            <div class="hero__actions" data-hero><a class="btn" href="#game">Try the garden mission ↗</a><a class="hero__case-link" href="#loop">Explore what I built →</a></div>
           </div>
-          <a class="cue" href="#game" data-hero>Start with the game <span aria-hidden="true">↓</span></a>
         </div>
       </header>
 
-      <!-- 1 THE GAME -->
-      <section class="section" id="game">
-        <div class="section__head" data-reveal>
-          <p class="kicker">01 · The game</p>
-          <h2>24 metres of fence. One rooftop garden. What would you build?</h2>
-          <p class="lead">
-            A mission starts in a child's own world. The student talks with a character, looks at the scene, and then does
-            what builds memory: writes it down in a notebook. Nothing is typed into a chat box.
-          </p>
-        </div>
 
-        <!-- Panel 1: meet -->
-        <article class="panel" data-scene="meet">
-          <header class="panel__head">
-            <p class="step"><b>1</b> Meet the problem</p>
-            <button class="replay" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </header>
-          <div class="panel__grid">
-            <figure class="art">
-              <svg viewBox="0 0 640 440" role="img" aria-label="A Hong Kong rooftop community garden. Auntie Mei, wearing a sun hat, stands beside a fenced soil plot holding a watering can.">
-                <defs>
-                  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#bfe3ee" />
-                    <stop offset="1" stop-color="#f7efd9" />
-                  </linearGradient>
-                  <pattern id="win" width="14" height="16" patternUnits="userSpaceOnUse">
-                    <rect x="3" y="4" width="7" height="8" fill="#ffffff" opacity=".55" />
-                  </pattern>
-                </defs>
-                <rect width="640" height="440" fill="url(#sky)" />
-                <circle class="sun" cx="540" cy="76" r="32" fill="#ffd58a" />
-                <g class="skyline">
-                  <rect x="14" y="190" width="64" height="150" fill="#9fb6c8" /><rect x="14" y="190" width="64" height="150" fill="url(#win)" />
-                  <rect x="84" y="140" width="52" height="200" fill="#8aa5b9" /><rect x="84" y="140" width="52" height="200" fill="url(#win)" />
-                  <rect x="142" y="205" width="70" height="135" fill="#a9bfcf" /><rect x="142" y="205" width="70" height="135" fill="url(#win)" />
-                  <rect x="218" y="120" width="44" height="220" fill="#7f9bb1" /><rect x="218" y="120" width="44" height="220" fill="url(#win)" />
-                  <rect x="268" y="175" width="72" height="165" fill="#9fb6c8" /><rect x="268" y="175" width="72" height="165" fill="url(#win)" />
-                  <rect x="346" y="150" width="56" height="190" fill="#8aa5b9" /><rect x="346" y="150" width="56" height="190" fill="url(#win)" />
-                  <rect x="408" y="210" width="66" height="130" fill="#a9bfcf" /><rect x="408" y="210" width="66" height="130" fill="url(#win)" />
-                  <rect x="480" y="165" width="60" height="175" fill="#8aa5b9" /><rect x="480" y="165" width="60" height="175" fill="url(#win)" />
-                  <rect x="546" y="200" width="80" height="140" fill="#9fb6c8" /><rect x="546" y="200" width="80" height="140" fill="url(#win)" />
-                </g>
-                <rect x="0" y="330" width="640" height="110" fill="#dccdae" />
-                <rect x="0" y="330" width="640" height="9" fill="#c4af89" />
-                <!-- potted plants on the roof edge -->
-                <g fill="#3c8d4a"><ellipse cx="40" cy="322" rx="14" ry="10" /><ellipse cx="600" cy="322" rx="16" ry="11" /></g>
-                <g fill="#c8663f"><rect x="30" y="326" width="20" height="14" rx="3" /><rect x="590" y="326" width="22" height="14" rx="3" /></g>
-
-                <!-- the plot -->
-                <rect x="100" y="356" width="340" height="62" rx="6" fill="#7a5a3c" />
-                <g stroke="#6a4c31" stroke-width="3" stroke-linecap="round"><path d="M120 376h300M120 396h300" /></g>
-                <g class="sprouts" fill="none" stroke="#3c8d4a" stroke-width="3" stroke-linecap="round">
-                  <g><path d="M150 372v-14" /><path d="M150 364q-8-2-9-9M150 361q8-2 9-9" /></g>
-                  <g><path d="M205 392v-14" /><path d="M205 384q-8-2-9-9M205 381q8-2 9-9" /></g>
-                  <g><path d="M262 372v-14" /><path d="M262 364q-8-2-9-9M262 361q8-2 9-9" /></g>
-                  <g><path d="M318 392v-14" /><path d="M318 384q-8-2-9-9M318 381q8-2 9-9" /></g>
-                  <g><path d="M376 372v-14" /><path d="M376 364q-8-2-9-9M376 361q8-2 9-9" /></g>
-                </g>
-                <!-- the fence -->
-                <path class="fence-line" pathLength="1" d="M94 350H446V424H94Z" fill="none" stroke="#b5834f" stroke-width="6" stroke-linejoin="round" />
-                <g class="posts" fill="#8d6238">
-                  <rect x="90" y="340" width="9" height="90" rx="3" /><rect x="180" y="342" width="8" height="12" rx="2" /><rect x="270" y="342" width="8" height="12" rx="2" /><rect x="360" y="342" width="8" height="12" rx="2" /><rect x="441" y="340" width="9" height="90" rx="3" />
-                </g>
-                <!-- sign -->
-                <g class="sign">
-                  <rect x="205" y="286" width="130" height="46" rx="8" fill="#fffdf8" stroke="#1d2433" stroke-width="3" />
-                  <text x="270" y="306" text-anchor="middle" font-family="Inter Variable, sans-serif" font-size="13" font-weight="700" fill="#1d2433">24 m of fence</text>
-                  <text x="270" y="324" text-anchor="middle" font-family="Inter Variable, sans-serif" font-size="12" fill="#4a5367">1 m² = 1 plant</text>
-                  <path d="M270 332v14" stroke="#1d2433" stroke-width="3" />
-                </g>
-
-                <!-- Auntie Mei -->
-                <g class="mei" transform="translate(530 205)">
-                  <rect x="-16" y="118" width="12" height="42" rx="5" fill="#2b3a67" />
-                  <rect x="4" y="118" width="12" height="42" rx="5" fill="#2b3a67" />
-                  <rect x="-20" y="154" width="18" height="9" rx="4" fill="#1d2433" /><rect x="2" y="154" width="18" height="9" rx="4" fill="#1d2433" />
-                  <rect x="-24" y="44" width="48" height="84" rx="16" fill="#1f7a6d" />
-                  <rect x="-16" y="76" width="32" height="48" rx="8" fill="#f0e3c8" />
-                  <path class="arm" d="M-20 64q-30 14-44 34" stroke="#f1c8a2" stroke-width="10" stroke-linecap="round" fill="none" />
-                  <g class="can" transform="translate(-92 90)">
-                    <rect x="0" y="0" width="34" height="26" rx="5" fill="#e4572e" />
-                    <path d="M0 8L-18-6" stroke="#e4572e" stroke-width="6" stroke-linecap="round" />
-                    <path d="M34 6q16 0 16 14" stroke="#e4572e" stroke-width="5" fill="none" stroke-linecap="round" />
-                  </g>
-                  <path d="M20 64q18 12 22 36" stroke="#f1c8a2" stroke-width="10" stroke-linecap="round" fill="none" />
-                  <circle cx="0" cy="24" r="23" fill="#f1c8a2" />
-                  <path d="M-23 20q2-22 23-22t23 22q-12-10-23-10t-23 10z" fill="#2a2320" />
-                  <ellipse cx="0" cy="6" rx="40" ry="8" fill="#f2c14e" />
-                  <path d="M-24 6q0-26 24-26t24 26z" fill="#f2c14e" />
-                  <path d="M-24 4h48" stroke="#c9962a" stroke-width="4" />
-                  <circle cx="-8" cy="26" r="2.6" fill="#1d2433" /><circle cx="8" cy="26" r="2.6" fill="#1d2433" />
-                  <path d="M-8 35q8 7 16 0" stroke="#1d2433" stroke-width="2.6" fill="none" stroke-linecap="round" />
-                </g>
-              </svg>
-              <figcaption>Auntie Mei runs the community garden on top of a Sham Shui Po estate.</figcaption>
-            </figure>
-
-            <div class="talk" aria-label="Conversation">
-              <div class="bubble bubble--mei">
-                <span class="who">Auntie Mei</span>
-                <p>Welcome to the rooftop garden! The estate gave us <b>24 metres of fence</b> and a whole lot of seeds.</p>
-              </div>
-              <div class="bubble bubble--mei">
-                <span class="who">Auntie Mei</span>
-                <p>Every square metre grows <b>one plant</b>. How should I set the fence up so we grow the most?</p>
-              </div>
-              <div class="bubble bubble--task">
-                <span class="who">Your mission</span>
-                <p>Grab your notebook. Sketch <b>two different gardens</b> that use all 24 metres, and work out how many plants each one grows.</p>
-                <p class="task__tag">✎ Pen and paper</p>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <!-- Panel 2: write -->
-        <article class="panel" data-scene="write">
-          <header class="panel__head">
-            <p class="step"><b>2</b> Write it down</p>
-            <button class="replay" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </header>
-          <div class="panel__grid panel__grid--notebook">
-            <div class="nb" aria-label="A student's notebook page, handwritten">
-              <div class="nb__row nb__row--title"><span class="hw hw--title"><span class="hw__ink">Garden plan</span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span></div>
-              <div class="nb__row">
-                <span class="hw"><span class="hw__ink">Garden A: 11 m × 1 m</span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span>
-                <svg class="sketch" viewBox="0 0 120 34" aria-hidden="true"><rect class="draw" pathLength="1" x="6" y="12" width="108" height="10" /></svg>
-              </div>
-              <div class="nb__row"><span class="hw"><span class="hw__ink">fence = (11 + 1) × 2 = 24 m ✓</span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span></div>
-              <div class="nb__row"><span class="hw"><span class="hw__ink">plants = 11 × 1 = <u>11</u></span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span></div>
-              <div class="nb__row">
-                <span class="hw"><span class="hw__ink">Garden B: 6 m × 6 m</span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span>
-                <svg class="sketch" viewBox="0 0 120 34" aria-hidden="true"><rect class="draw" pathLength="1" x="46" y="3" width="28" height="28" /></svg>
-              </div>
-              <div class="nb__row"><span class="hw"><span class="hw__ink">fence = 6 × 4 = 24 m ✓</span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span></div>
-              <div class="nb__row"><span class="hw"><span class="hw__ink">plants = 6 × 6 = <u>36</u></span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span></div>
-              <div class="nb__row"><span class="hw hw--note"><span class="hw__ink">Same fence, more space: 36 plants!</span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l3-1L19 7l-2-2L4 18z" fill="#e4572e" /><path d="M3 21l1-3 2 2z" fill="#1d2433" /></svg></span></div>
-            </div>
-
-            <div class="side">
-              <p class="side__title">Saved to <b>My Notebook</b></p>
-              <div class="shelf" aria-label="Notebook pages saved for revision">
-                <div class="page page--old"><i>Mon</i><b>Unit price at the wet market</b></div>
-                <div class="page page--old"><i>Last week</i><b>Sharing a pizza in fractions</b></div>
-                <div class="page page--new"><i>Today</i><b>Garden plan</b><em>★ new</em></div>
-              </div>
-              <ul class="why">
-                <li>Writing is how the idea sticks, so the student writes.</li>
-                <li>Each page is kept in the notebook, ready to revise before a test.</li>
-              </ul>
-            </div>
-          </div>
-        </article>
-
-        <!-- Panel 3: garden answers -->
-        <article class="panel" data-scene="garden">
-          <header class="panel__head">
-            <p class="step"><b>3</b> The garden answers</p>
-            <button class="replay" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </header>
-          <div class="panel__grid panel__grid--garden">
-            <div class="plots">
-              <figure class="plot" id="plotA">
-                <div class="plot__draw"></div>
-                <figcaption><b>Garden A</b> · 11 m × 1 m<span class="plot__count"><i id="countA">0</i> plants</span></figcaption>
-              </figure>
-              <figure class="plot" id="plotB">
-                <div class="plot__draw"></div>
-                <figcaption><b>Garden B</b> · 6 m × 6 m<span class="plot__count"><i id="countB">0</i> plants</span></figcaption>
-              </figure>
-              <p class="plots__verdict">Same 24 m of fence. <b>36 plants</b> against <b>11</b>.</p>
-            </div>
-            <div class="find-slot">
-              <p class="side__title">Auntie Mei says</p>
-              <div class="bubble bubble--mei bubble--solo">
-                <p>Same fence, completely different space! I'll save you a card for that.</p>
-              </div>
-              <div class="find">
-                <span class="find__tag">Find #1 · Area</span>
-                <svg viewBox="0 0 120 80" aria-hidden="true">
-                  <rect x="8" y="30" width="104" height="14" fill="#e8f3d9" stroke="#1f7a6d" stroke-width="3" />
-                  <g fill="#3c8d4a" opacity=".85"><circle cx="20" cy="37" r="3" /><circle cx="40" cy="37" r="3" /><circle cx="60" cy="37" r="3" /><circle cx="80" cy="37" r="3" /><circle cx="100" cy="37" r="3" /></g>
-                </svg>
-                <b>Same fence, different space</b>
-                <small>Perimeter says how long. Area says how much room.</small>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <!-- The slot where the new game goes. See src/game/index.ts. -->
-        <div class="stage" id="game-stage" data-reveal>
-          <div class="stage__frame" id="game-mount">
-            <div class="stage__placeholder" id="game-placeholder">
-              <p class="kicker">New version in development</p>
-              <h3>The new game will be playable right here.</h3>
-              <p>
-                This frame is built and waiting. When the game is ready, one setting switches the Play button on and loads
-                it in this space.
-              </p>
-            </div>
-          </div>
-          <div class="stage__bar">
-            <button class="btn btn--light" id="game-play" type="button" aria-disabled="true">Play</button>
-            <span class="stage__state" id="game-state">Coming soon</span>
-          </div>
-        </div>
+      <section class="section section--game" id="game">
+        <div class="section__head" data-reveal><p class="kicker">01 · The game</p><h2>24 metres of fence.<br>One rooftop garden. What would you build?</h2><p class="lead">Help Mei grow as many plants as possible. Drag the garden, sketch in your notebook and test two plans.</p></div>
+        <div id="game-mount"></div>
+        <p class="experience-caption"><span>Learning through real-life decisions</span> This playable portfolio mission explores mathematical modelling: using maths to make and test a decision. The prerequisite diagnosis and live-tracking approach below comes from MathsAI.</p>
       </section>
-
-      <!-- 2 THE CATCH -->
-      <section class="section section--tint" id="catch">
-        <div class="section__head" data-reveal>
-          <p class="kicker">02 · The catch</p>
-          <h2>Thirty notebooks. One teacher. One lesson.</h2>
-          <p class="lead">
-            Writing is good for learning, but it hides what each student is thinking. Marking by hand takes about a day, and
-            by then the lesson has moved on. Run both and watch the clock.
-          </p>
-        </div>
-
-        <div class="card sim" data-scene="sim">
-          <div class="seg" role="tablist" aria-label="How the teacher finds out">
-            <button role="tab" aria-selected="true" data-mode="paper">Marking by hand</button>
-            <button role="tab" aria-selected="false" data-mode="live">MathsAI dashboard</button>
-          </div>
-
-          <div class="sim__top">
-            <div class="clock">
-              <span class="clock__label" id="clock-label">Time until the teacher knows</span>
-              <output class="clock__value" id="clock" for="run">0:00</output>
-            </div>
-            <button class="replay replay--solid" id="run" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </div>
-
-          <div class="dots30" id="dots30" role="group" aria-label="30 students"></div>
-
-          <p class="sim__note" id="sim-note" aria-live="polite"></p>
-          <p class="fine">
-            Illustrative simulation. The two timings are the real figures: about one day by hand, about five minutes with
-            the dashboard.
-          </p>
-        </div>
-      </section>
-
-      <!-- 3 THE ERROR, IN MATHS -->
       <section class="section" id="error">
         <div class="section__head" data-reveal>
-          <p class="kicker">03 · The error, in maths</p>
-          <h2>Not “wrong”. Exactly which idea slipped.</h2>
-          <p class="lead">
-            Every question in the bank carries the mistakes students really make, written in maths, with the topic each one
-            points back to. These are real entries from the Area (I) bank. Pick a question and a mistake.
-          </p>
+          <p class="kicker">02 · Inside the diagnosis</p>
+          <h2>A wrong answer can start<br>with an earlier missing skill.</h2>
+          <p class="lead">MathsAI reads the student's working and checks the earlier skills the question depends on. Explore the real curriculum map around Area below.</p>
         </div>
 
+        <div id="knowledge-explorer"></div>
+        <details id="bank-examples" class="bank-examples"><summary>See the student's working <span>↗</span></summary>
         <div class="card diag" data-scene="error">
           <div class="diag__bar">
             <div class="seg" role="tablist" aria-label="Question" id="err-q"></div>
@@ -361,137 +119,27 @@
           </div>
           <p class="fine">
             Entries are copied from the real question bank and curriculum map (topic 4M2). The full bank, with 46
-            questions and 63 catalogued errors for this topic alone, and the rest of the map, stay private.
+            questions and 64 catalogued error entries in this English-language snapshot, and the rest of the map, stay private.
           </p>
         </div>
+        </details>
       </section>
-
-      <!-- 4 THE REWARD -->
-      <section class="section section--tint" id="reward">
-        <div class="section__head" data-reveal>
-          <p class="kicker">04 · The reward</p>
-          <h2>Understanding earns something you can keep.</h2>
-          <p class="lead">
-            When a student slips, the game offers a short challenge aimed at exactly that gap. Finish it and they collect
-            coins, a Find card for the idea they just understood, and a place on their trophy shelf. Rewards are earned by
-            what you did, never random.
-          </p>
-        </div>
-
-        <div class="card rew" data-scene="reward">
-          <div class="rew__top">
-            <p class="mini">After the slip: <b class="m">(8 + 6) × 2 = 28</b>, the perimeter formula where area was needed</p>
-            <button class="replay" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </div>
-          <div class="rew__grid">
-            <div class="rew__cell rew__cell--challenge">
-              <p class="mini">Mini-challenge</p>
-              <b class="rew__title">Cover the 8 × 6 rectangle with 1 cm squares</b>
-              <div class="cover" id="cover" aria-hidden="true"></div>
-              <p class="rew__sum"><i id="cover-n">0</i> squares <span class="m">= 48 cm<sup>2</sup></span></p>
-            </div>
-
-            <div class="rew__cell rew__cell--coins">
-              <p class="mini">Coins</p>
-              <svg class="jar" viewBox="0 0 120 140" aria-hidden="true">
-                <path d="M30 22h60v10q14 8 14 24v62q0 14-14 14H30q-14 0-14-14V56q0-16 14-24z" fill="#fffdf8" stroke="#1d2433" stroke-width="4" />
-                <rect x="26" y="10" width="68" height="14" rx="5" fill="#1d2433" />
-                <g class="coin-stack" fill="#f2c14e" stroke="#c9962a" stroke-width="3">
-                  <ellipse cx="46" cy="118" rx="16" ry="6" /><ellipse cx="74" cy="118" rx="16" ry="6" />
-                  <ellipse cx="60" cy="110" rx="16" ry="6" /><ellipse cx="46" cy="102" rx="16" ry="6" /><ellipse cx="74" cy="102" rx="16" ry="6" />
-                </g>
-              </svg>
-              <p class="rew__sum">+<i id="coin-n">0</i> coins</p>
-              <div class="flycoins" aria-hidden="true">
-                <span></span><span></span><span></span><span></span><span></span><span></span>
-              </div>
-            </div>
-
-            <div class="rew__cell rew__cell--card">
-              <p class="mini">Find card</p>
-              <button class="flip" id="flip" type="button" aria-pressed="false" aria-label="Find card: tap to flip">
-                <span class="flip__in">
-                  <span class="flip__face flip__face--front"><b>?</b><small>a new idea unlocked</small></span>
-                  <span class="flip__face flip__face--back">
-                    <span class="find__tag">Find #2 · Area</span>
-                    <b class="m">A = l × w</b>
-                    <small>Area counts squares. Perimeter measures the edge.</small>
-                  </span>
-                </span>
-              </button>
-              <p class="rew__sum rew__sum--tiny">Tap the card to flip it</p>
-            </div>
-
-            <div class="rew__cell rew__cell--trophy">
-              <p class="mini">Trophy shelf</p>
-              <div class="shelf-t" aria-hidden="true">
-                <div class="slot"><span>★</span><small>Garden</small></div>
-                <div class="slot"><span>★</span><small>Market</small></div>
-                <div class="slot slot--new"><span>★</span><small>Area</small></div>
-              </div>
-              <p class="rew__sum">Area explorer</p>
-            </div>
-          </div>
-
-          <figure class="v1">
-            <img loading="lazy" src="/img/concept-home-trophies-visiting.webp" alt="Concept art from the first version: a student's home with a trophy shelf." />
-            <figcaption>First version concept art (July 2026): the student's home, trophies, and visiting friends. The new game will redraw it.</figcaption>
-          </figure>
-        </div>
+      <section class="section section--tint" id="catch">
+        <div class="section__head" data-reveal><p class="kicker">03 · The teacher's view</p><h2>A class of 30.<br>When does the teacher know who is stuck?</h2><p class="lead">Marking by hand means finding out later. Live feedback lets the teacher help while the lesson is still happening. Run both together.</p></div>
+        <div id="teacher-experience"></div>
+        <p class="experience-caption"><span>Shipped in MathsAI</span> I built the real-time dashboard and AI error analysis. Teacher feedback time fell from about one day to five minutes. This view illustrates the experience using authored examples.</p>
       </section>
-
-      <!-- 5 THE TEACHER'S VIEW -->
-      <section class="section section--dark" id="teacher">
-        <div class="section__head" data-reveal>
-          <p class="kicker">05 · The teacher’s view</p>
-          <h2>All thirty students, at the same time.</h2>
-          <p class="lead">
-            The teacher doesn’t wait for marking. As students finish, the class board fills in, and the same mistake lights
-            up across the room. Tap a student, or tap a mistake.
-          </p>
-        </div>
-
-        <div class="board" data-scene="teacher">
-          <div class="board__top">
-            <div>
-              <p class="board__title">Class 4B · Area of a rectangle</p>
-              <p class="board__sub">Sample class with made-up students</p>
-            </div>
-            <div class="board__stats">
-              <div><b id="b-sub">0</b><span>of 30 handed in</span></div>
-              <div class="help"><b id="b-help">0</b><span>need help</span></div>
-            </div>
-            <button class="replay replay--dark" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </div>
-
-          <div class="board__chips" id="b-chips" role="group" aria-label="Mistakes in this class"></div>
-          <div class="board__grid" id="b-grid"></div>
-          <div class="board__detail" id="b-detail" aria-live="polite"></div>
-        </div>
+      <section class="section" id="reward">
+        <div class="section__head" data-reveal><p class="kicker">04 · The right practice</p><h2>Practise the skill<br>that needs help.</h2><p class="lead">If a student mixes up area and perimeter, practise counting the space inside a shape. The next question is chosen from what they got wrong.</p></div>
+        <div id="next-challenge"></div>
       </section>
-
-      <!-- 6 THE LOOP -->
-      <section class="section" id="loop">
-        <div class="section__head" data-reveal>
-          <p class="kicker">06 · How it fits together</p>
-          <h2>One loop, from the game back to the game.</h2>
-          <p class="lead">Each step feeds the next. Tap any step to see what it does.</p>
-        </div>
-
-        <div class="card loop" data-scene="loop">
-          <div class="loop__top">
-            <p class="mini">The learning loop</p>
-            <button class="replay" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </div>
-          <ol class="loop__chain" id="loop-chain"></ol>
-          <p class="loop__note" id="loop-note" aria-live="polite"></p>
-        </div>
+      <section class="section section--tint" id="loop">
+        <div class="section__head" data-reveal><p class="kicker">05 · My part</p><h2>I connected the curriculum,<br>student working and teacher feedback.</h2></div>
+        <div id="build-story"></div>
       </section>
-
-      <!-- 7 PROOF -->
       <section class="section section--tint" id="proof">
         <div class="section__head" data-reveal>
-          <p class="kicker">07 · The track record behind it</p>
+          <p class="kicker">06 · The track record behind it</p>
           <h2>200+ pitches became 150 collaborations and 30+ paying schools.</h2>
           <p class="lead">
             The platform under this idea is already in classrooms. I defined who to approach, how to price it, how to
@@ -537,7 +185,7 @@
       <!-- 8 EXPERIENCE -->
       <section class="section" id="experience">
         <div class="section__head" data-reveal>
-          <p class="kicker">08 · Experience</p>
+          <p class="kicker">07 · Experience</p>
           <h2>One person across product, engineering and the classroom.</h2>
           <p class="lead">Filter by the kind of work. Open a card for the detail.</p>
         </div>
