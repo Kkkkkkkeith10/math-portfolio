@@ -9,8 +9,10 @@ import { initExperience } from "./sections/experience";
 import { initGame } from "./sections/game";
 import { initKnowledge } from "./sections/knowledge";
 import { initLearningFlow } from "./sections/learning-flow";
+import { initTown } from "./sections/town";
 
 initGame();
+initTown();
 initKnowledge();
 initLearningFlow();
 initExperience();

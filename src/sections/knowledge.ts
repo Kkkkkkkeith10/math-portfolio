@@ -1,6 +1,8 @@
 import "./knowledge.css";
 import { m } from "../data/area";
-import { AREA_BANK_COUNTS, AREA_EDGES, AREA_TOPICS, type AreaEdge } from "../data/area-neighborhood";
+import { PRIMARY_BANK_COUNTS, AREA_EDGES, AREA_TOPICS, type AreaEdge } from "../data/area-neighborhood";
+
+const roundDown = (n: number): string => `${(Math.floor(n / 1000) * 1000).toLocaleString("en")}+`;
 
 const NODES: Record<string, { x: number; y: number; label: string[] }> = {
   "5M1": { x: 400, y: 50, label: ["Later area"] },
@@ -66,11 +68,14 @@ export function initKnowledge(): void {
       <p class="kg-question">Question: find the area of an <b>8 cm × 6 cm</b> rectangle.</p>
       ${CASES.map((c, i) => `<button type="button" class="kg-card" data-kg-case="${i}" aria-pressed="${i === 0}"><span class="kg-card__who">Student ${String.fromCharCode(65 + i)}</span><span class="kg-card__work">${c.working.map((l) => `<span>${m(l)}</span>`).join("")}</span><span class="kg-card__x" aria-label="wrong">✗</span></button>`).join("")}
       <p class="kg-correct">Correct: 8 × 6 = 48 cm<sup>2</sup></p>
-      <p class="kg-key"><i class="g"></i>understood <i class="r"></i>the gap</p>
     </div>
     <div class="kg-tree-card"><div class="kg-tree-frame" id="kg-tree-frame"></div><p class="kg-gap" id="kg-gap" aria-live="polite"></p></div>
   </div>
-  <p class="kg-fine">Real MathsAI data: the Area (I) bank has ${AREA_BANK_COUNTS.questions} questions and ${AREA_BANK_COUNTS.errorEntries} catalogued mistakes. Three are shown here.</p>`;
+  <div class="kg-system">
+    <h3>Built on the Hong Kong curriculum.</h3>
+    <p>Every topic, question and mistake follows the EDB Mathematics Curriculum and Assessment Guide. We built a full system that links each topic to the skills it needs, scaffolds learning from earlier grades up to later ones, and connects every common mistake to the gap behind it.</p>
+    <ul><li><b>${PRIMARY_BANK_COUNTS.topics}</b>topics from P1 to P6</li><li><b>${roundDown(PRIMARY_BANK_COUNTS.questions)}</b>questions</li><li><b>${roundDown(PRIMARY_BANK_COUNTS.errorEntries)}</b>catalogued mistakes</li></ul>
+  </div>`;
 
   const frame = root.querySelector<HTMLElement>("#kg-tree-frame")!;
   const gap = root.querySelector<HTMLElement>("#kg-gap")!;

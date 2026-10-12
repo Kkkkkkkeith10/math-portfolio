@@ -73,6 +73,7 @@
 .lf-build-story article { display: flex; align-items: baseline; gap: 1.5rem; padding: 1.2rem 0; border-bottom: 1px solid #e0e2d4; }
 .lf-build-story article > span { font: 500 1.15rem var(--serif); color: #a9b096; }
 .lf-build-story h3 { font-size: clamp(1.3rem, 2.6vw, 1.7rem); color: #3f5a3a; }
+.lf-build-story p { margin: .3rem 0 0; font-size: .95rem; line-height: 1.55; color: var(--ink-soft); }
 .lf-funnel { display: grid; gap: 10px; margin-top: 2rem; }
 .lf-funnel > div { display: flex; align-items: baseline; gap: .9rem; width: var(--w); min-width: 230px; background: var(--teal-soft, #dcebe6); border-radius: 14px; padding: .9rem 1.2rem; }
 .lf-funnel > div:last-child { background: var(--teal); color: #fff; }

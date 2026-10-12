@@ -49,5 +49,9 @@ export const AREA_EDGES: AreaEdge[] = [
   { dependent: "4M2", foundation: "4M1", kind: "error" },
 ];
 
-/** Counts computed from English questions.en.byTier[].commonErrors in the same 24-4 snapshot. */
-export const AREA_BANK_COUNTS = { questions: 46, errorEntries: 64 } as const;
+/**
+ * Primary-wide counts (P1–P6) from the same 24-4 snapshot: topics from curriculum-graph.json;
+ * questions from questions.zh.byTier[] (the larger language set, en has 1919); mistakes from
+ * questions.en.byTier[].commonErrors. Only these totals are public, never bank content.
+ */
+export const PRIMARY_BANK_COUNTS = { topics: 97, questions: 2225, errorEntries: 4487 } as const;

@@ -318,10 +318,15 @@ function initChallenge(host: HTMLElement): void {
 }
 
 function initBuildStory(host: HTMLElement): void {
+  const parts = [
+    ["The idea", "I defined what MathsAI should be and set the roadmap."],
+    ["The infrastructure", "I designed and built the platform the whole product runs on."],
+    ["The AI analysis framework", "It reads handwritten working step by step and links each mistake to the gap behind it."],
+    ["Built with teachers", "I co-developed it with teachers through classroom visits and interviews in 50+ schools."],
+    ["The go-to-market plan", "I set the pitch, the pricing and the path from pilot to paying school."],
+  ];
   host.innerHTML = `<div class="lf-build-story">
-    <article><span>01</span><h3>I mapped how the maths skills connect.</h3></article>
-    <article><span>02</span><h3>I built the reading of handwritten working.</h3></article>
-    <article><span>03</span><h3>I built the teacher's live view.</h3></article>
+    ${parts.map(([title, text], i) => `<article><span>${String(i + 1).padStart(2, "0")}</span><div><h3>${title}</h3><p>${text}</p></div></article>`).join("")}
   </div>
   <div class="lf-funnel" aria-label="Schools">
     <div style="--w:100%"><b>200+</b><span>schools I pitched to</span></div>
