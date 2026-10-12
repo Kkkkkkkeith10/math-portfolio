@@ -1,137 +1,432 @@
-import { getGardenState, updateGardenState, type GardenPlan, type GardenState } from "./state";
+import { updateGardenState, type GardenPlan } from "./state";
 import type { RooftopHandle } from "./rooftop";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import "./garden.css";
 
+const FENCE = 24;
+
+interface Reply { label: string; then: () => void }
+
 export function mountMission(container: HTMLElement): { destroy(): void } {
   container.innerHTML = `
-  <div class="garden-shell" data-phase="meet">
-    <header class="garden-top"><span class="garden-brand"><i aria-hidden="true">✳</i> Math Town <small>/ Rooftop garden</small></span><div class="garden-top-actions"><span class="garden-label">Playable portfolio concept</span><button type="button" id="garden-fullscreen" aria-pressed="false">⛶ Full screen</button></div></header>
-    <ol class="garden-steps" aria-label="Mission progress"><li data-step="meet"><span>01</span> Meet Mei</li><li data-step="build"><span>02</span> Make a plan</li><li data-step="compare"><span>03</span> Compare</li><li data-step="transfer"><span>04</span> Try a twist</li></ol>
-    <div class="garden-world-layout">
-      <div class="garden-world">
-        <div id="rooftop-scene" role="group" aria-label="Interactive low-poly rooftop garden. Drag the gold corner or the teal side handles to resize your garden; the side panel also has keyboard-accessible sliders." data-lenis-prevent></div>
-        <span class="garden-location">⌖ Sham Shui Po · Rooftop garden</span><span id="garden-direct-hint" hidden>Drag a glowing handle to shape your garden</span><span id="garden-mobile-fence">Fence: 22 / 24 m</span><div id="garden-world-stat" hidden><span>Harvest</span><b id="garden-harvest">0</b><small>plants</small></div><span class="garden-render-note">Rooftop garden</span>
-        <details id="garden-notebook" class="garden-notebook" hidden><summary>✎ My notebook</summary><div class="garden-board-wrap"><div class="garden-toolbar" role="group" aria-label="Notebook tools"><button type="button" data-tool="shape" aria-pressed="true">↔ <span>Diagram</span></button><button type="button" data-tool="pen" aria-pressed="false">✎ <span>Pen</span></button><button type="button" data-tool="eraser" aria-pressed="false">▱ <span>Eraser</span></button><button type="button" id="garden-ruler" aria-pressed="true">⌇ <span>Measure</span></button><button type="button" id="garden-undo" aria-label="Undo last whiteboard change">↶ <span>Undo</span></button></div><svg id="garden-board" role="img" aria-label="Your garden diagram and handwritten notes" data-lenis-prevent><defs><pattern id="garden-grid-pattern" patternUnits="userSpaceOnUse"><path id="garden-grid-path" fill="none"/></pattern></defs><rect width="100%" height="100%" fill="url(#garden-grid-pattern)"/><g id="garden-board-geometry"></g><g id="garden-board-ink"></g></svg><div class="garden-board-foot"><span>□ Each square is 1 m²</span><span id="garden-tool-hint">Sketch your working here</span></div></div></details>
-        <section id="garden-comparison" class="garden-comparison garden-scene-panel" hidden><span class="garden-caption">Your discovery</span><h3>Same fence. A different harvest.</h3><div id="garden-plan-cards" class="garden-plan-cards"></div><p id="garden-comparison-note"></p><div class="garden-actions"><button type="button" class="garden-secondary" id="garden-experiment">Keep experimenting</button><button type="button" class="garden-primary" id="garden-twist">Try a new fence allowance →</button></div></section>
-        <section id="garden-transfer" class="garden-transfer garden-scene-panel" hidden><span class="garden-caption">A fresh situation</span><h3>Next door has 20 metres of fence.</h3><p>Both gardens use it all. Which one grows more plants?</p><div class="garden-transfer-options"><button type="button" data-transfer="21"><span class="transfer-mini transfer-long"></span><b>3 m × 7 m</b><span>Choose this garden</span></button><button type="button" data-transfer="24"><span class="transfer-mini transfer-square"></span><b>4 m × 6 m</b><span>Choose this garden</span></button></div><p id="garden-transfer-feedback" aria-live="polite"></p></section>
-        <section id="garden-complete" class="garden-complete garden-scene-panel" hidden><div class="garden-find"><span class="garden-caption">Your first Find</span><span class="garden-find-symbol" aria-hidden="true">✳</span><h3>Same fence,<br>different space.</h3><p>The edge and the space inside measure different things.</p><span class="garden-find-tag">Area · Perimeter</span></div><div><span class="garden-caption">Experiment complete</span><h3>You made the discovery.</h3><p>Your fresh answer matches: 4 × 6 gives 24 plants, compared with 3 × 7 giving 21.</p><p>Next, see how MathsAI traces a mistake to the learning foundation that needs help.</p><a class="garden-primary" href="#error">Find the learning gap ↗</a><button type="button" class="garden-text-button" id="garden-restart">Try the garden again</button></div></section>
+  <div class="g" data-phase="meet">
+    <div class="g-layout">
+      <div class="g-world">
+        <button type="button" class="g-full" id="g-full" aria-pressed="false">⛶ Full screen</button>
+        <div id="rooftop-scene" role="group" aria-label="Mei's rooftop garden. Drag the round handles to change the size of the garden." data-lenis-prevent></div>
+        <div class="g-bubble" id="g-bubble" hidden aria-live="polite"><b>Mei</b><p id="g-say"></p><div class="g-replies" id="g-replies"></div></div>
+        <div class="g-slot" id="g-slot" hidden aria-live="polite"><span class="g-slot__icon" aria-hidden="true"><i></i><i></i><i></i></span><b id="g-slot-n">0</b><small>seeds left</small></div>
+        <div class="g-verdict" id="g-verdict" hidden aria-live="assertive"><span class="g-verdict__mark" id="g-mark"></span><p id="g-verdict-text"></p></div>
+        <details class="g-notebook" id="g-notebook" hidden><summary>✎ My notebook</summary>
+          <div class="g-board-wrap"><div class="g-tools" role="group" aria-label="Notebook tools"><button type="button" data-tool="pen" aria-pressed="true">✎ Pen</button><button type="button" data-tool="eraser" aria-pressed="false">Eraser</button><button type="button" id="g-undo">↶ Undo</button></div>
+          <svg id="g-board" role="img" aria-label="Your notebook: the garden drawn on squared paper, with your own writing" data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse"><path id="g-grid-path" fill="none"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-geo"></g><g id="g-ink"></g></svg>
+          <p class="g-board-foot">Each square is 1 m². Write your working here.</p></div>
+        </details>
+        <section class="g-done" id="g-done" hidden>
+          <div class="g-find"><span>Your first Find</span><b>Same fence,<br>different space.</b><small>Perimeter is the edge. Area is the space inside.</small></div>
+          <div><h3>You found it!</h3><p id="g-done-text"></p><a class="g-btn" href="#error">See how MathsAI spots mistakes ↓</a><button type="button" class="g-link" id="g-restart">Play again</button></div>
+        </section>
       </div>
-      <aside class="garden-guide"><div class="mei-avatar" aria-hidden="true">♧</div><p class="garden-character">Auntie Mei <span>Community gardener</span></p><h3 id="mei-title">Help Mei<br>grow more.</h3><p id="mei-speech">Use all 24 metres of fence. Each square metre grows one plant.</p>
-        <div id="garden-intro"><p class="garden-prompt">Which shape might grow more?</p><div class="garden-predictions" aria-label="Your first prediction"><button type="button" data-first="long" aria-pressed="false">Long & thin</button><button type="button" data-first="square" aria-pressed="false">Closer to a square</button><button type="button" data-first="unsure" aria-pressed="false">Let's find out</button></div><button type="button" class="garden-primary" id="garden-start">Make my garden ↗</button><small class="garden-duration">Drag in the scene. Discover what grows.</small></div>
-        <div id="garden-guide-active" hidden><p id="garden-instruction">Drag a handle. Predict the plants.</p><div class="garden-fence-meter"><div><span>Fence used</span><output id="fence-count">22 / 24 m</output></div><div class="garden-meter-track"><i id="fence-fill"></i></div><p id="fence-note">2 m left</p></div></div>
-        <div id="garden-workspace" class="garden-plan-controls" hidden><header><span class="garden-caption">Your garden</span><span id="garden-draft-label">Plan A</span></header><label for="garden-length">Length <output id="garden-length-label">8 m</output></label><input id="garden-length" type="range" min="1" max="11" value="8"><label for="garden-width">Width <output id="garden-width-label">3 m</output></label><input id="garden-width" type="range" min="1" max="11" value="3"><label for="garden-prediction">Predict the harvest</label><div class="garden-guess"><input id="garden-prediction" type="number" inputmode="numeric" min="1" max="121" placeholder="Your guess"><span>plants</span></div><button type="button" class="garden-primary" id="garden-test">Plant & see ↗</button><button type="button" class="garden-secondary" id="garden-next" hidden>Try a different shape →</button><button type="button" class="garden-secondary" id="garden-compare" hidden>Compare plans →</button><div id="garden-saved-plans" class="garden-saved-plans" aria-label="Saved garden designs"></div><details class="garden-equation"><summary>Show the fence calculation</summary><p id="garden-equation">2 × (8 + 3) = 22 m</p></details></div>
-        <p id="garden-feedback" aria-live="polite" hidden></p>
+      <aside class="g-panel" id="g-panel" hidden>
+        <p class="g-plan" id="g-plan">Plan A</p>
+        <div class="g-field">
+          <p class="g-label"><b>1</b> Shape your garden</p>
+          <label for="g-len">Length <output id="g-len-out">8 m</output></label><input id="g-len" type="range" min="1" max="11" value="8">
+          <label for="g-wid">Width <output id="g-wid-out">3 m</output></label><input id="g-wid" type="range" min="1" max="11" value="3">
+          <div class="g-fence"><span>Fence used</span><b id="g-fence">22 / 24 m</b></div>
+          <div class="g-track"><i id="g-fence-fill"></i></div>
+          <p class="g-fence-note" id="g-fence-note"></p>
+        </div>
+        <div class="g-field">
+          <p class="g-label"><b>2</b> How many seeds will fit?</p>
+          <div class="g-guess"><input id="g-seeds" type="number" inputmode="numeric" min="1" max="121" placeholder="?" aria-label="Number of seeds"><span>seeds</span></div>
+          <button type="button" class="g-btn" id="g-plant">Plant the seeds</button>
+        </div>
+        <ul class="g-saved" id="g-saved" aria-label="Your plans"></ul>
       </aside>
     </div>
-    <footer class="garden-bottom"><span>Built for curiosity. Grounded in maths.</span><a href="#error">How the system finds the gap →</a></footer>
   </div>`;
-  const root = container.querySelector<HTMLElement>(".garden-shell")!;
+
+  const root = container.querySelector<HTMLElement>(".g")!;
   const $ = <T extends HTMLElement = HTMLElement>(id: string): T => root.querySelector<T>(`#${id}`)!;
-  const all = <T extends Element = HTMLElement>(selector: string): T[] => [...root.querySelectorAll<T>(selector)];
-  const board = root.querySelector<SVGSVGElement>("#garden-board")!;
-  const geometry = root.querySelector<SVGGElement>("#garden-board-geometry")!;
-  const ink = root.querySelector<SVGGElement>("#garden-board-ink")!;
-  let scene: RooftopHandle | null = null, destroyed = false;
-  let draft = { length: 8, width: 3, ink: [] as number[][][] };
-  let tool = "shape", measure = true, harvested = false, planNumber = 0;
-  let boardWidth = 600, unit = 28;
-  let pointerMode: "shape" | "draw" | null = null, stroke: number[][] | null = null;
-  const history: typeof draft[] = [];
+  const world = root.querySelector<HTMLElement>(".g-world")!;
+  const board = root.querySelector<SVGSVGElement>("#g-board")!;
+  const geo = root.querySelector<SVGGElement>("#g-geo")!;
+  const inkLayer = root.querySelector<SVGGElement>("#g-ink")!;
   const controller = new AbortController();
-  const on = (el: EventTarget, event: string, callback: EventListener): void => el.addEventListener(event, callback, { signal: controller.signal });
-  const remember = (): void => { history.push(structuredClone(draft)); if (history.length > 30) history.shift(); };
-  function svg(tag: string, attrs: Record<string, string | number>, parent: Element): SVGElement {
-    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
-    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v)); parent.appendChild(el); return el;
+  const on = (el: EventTarget, event: string, fn: EventListener): void => el.addEventListener(event, fn, { signal: controller.signal });
+
+  let scene: RooftopHandle | null = null;
+  let destroyed = false;
+  let seen = false;
+  let started = false;
+  let length = 8;
+  let width = 3;
+  let busy = false;
+  const plans: GardenPlan[] = [];
+  let ink: number[][][] = [];
+  const history: number[][][][] = [];
+  let tool: "pen" | "eraser" = "pen";
+  let stroke: number[][] | null = null;
+  let boardWidth = 520;
+  let meiX = 0;
+  let meiY = 0;
+
+  /* ---------- Mei's speech bubble ---------- */
+  function placeBubble(): void {
+    const bubble = $("g-bubble");
+    if (bubble.hidden) return;
+    const docked = root.dataset.phase !== "meet";
+    bubble.classList.toggle("is-docked", docked);
+    if (docked) { bubble.style.left = ""; bubble.style.top = ""; return; }
+    const w = world.clientWidth;
+    const bw = bubble.offsetWidth;
+    const bh = bubble.offsetHeight;
+    const left = Math.max(12, Math.min(w - bw - 12, meiX - bw + 40));
+    const top = Math.max(12, meiY - bh - 14);
+    bubble.style.left = `${left}px`;
+    bubble.style.top = `${top}px`;
   }
-  function drawInk(): void { ink.replaceChildren(); draft.ink.forEach(points => svg("polyline", { points: points.map(([x,y]) => `${x*boardWidth},${y*360}`).join(" "), class: "garden-ink-stroke" }, ink)); }
-  function drawBoard(): void {
-    const width = board.parentElement!.clientWidth; if (width > 0) boardWidth = width;
-    unit = Math.min(28, (boardWidth - 92) / 11);
-    board.setAttribute("viewBox", `0 0 ${boardWidth} 360`);
-    const pattern = root.querySelector("#garden-grid-pattern")!;
-    for (const [k,v] of Object.entries({ width: unit, height: unit, x:42, y:30 })) pattern.setAttribute(k,String(v));
-    root.querySelector("#garden-grid-path")!.setAttribute("d", `M${unit} 0H0V${unit}`);
-    geometry.replaceChildren();
-    const x=42,y=30,w=draft.length*unit,h=draft.width*unit;
-    svg("rect",{x,y,width:w,height:h,class:"garden-board-plot"},geometry);
-    if(harvested)for(let r=0;r<draft.width;r++)for(let c=0;c<draft.length;c++){
-      const g=svg("g",{transform:`translate(${x+(c+.5)*unit},${y+(r+.5)*unit})`,class:"garden-board-plant"},geometry);
-      svg("ellipse",{cx:-unit*.1,cy:0,rx:unit*.16,ry:unit*.22,transform:"rotate(-35)"},g);svg("ellipse",{cx:unit*.1,cy:0,rx:unit*.16,ry:unit*.22,transform:"rotate(35)"},g);
+  function say(text: string, replies: Reply[] = []): void {
+    const bubble = $("g-bubble");
+    bubble.hidden = false;
+    $("g-say").innerHTML = text;
+    const box = $("g-replies");
+    box.replaceChildren(...replies.map((r) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = r.label;
+      b.addEventListener("click", r.then, { once: true });
+      return b;
+    }));
+    bubble.classList.remove("pop");
+    void bubble.offsetWidth;
+    bubble.classList.add("pop");
+    scene?.hop();
+    placeBubble();
+  }
+
+  /* ---------- The opening conversation ---------- */
+  function intro(): void {
+    if (started || !seen || !scene) return;
+    started = true;
+    scene.walkIn(() => {
+      say("Hi! I'm Auntie Mei. Can you help me with my rooftop garden?", [{ label: "Sure! What do you need?", then: rules }]);
+    });
+  }
+  function rules(): void {
+    say("I have <b>24 m of fence</b>. Every <b>1 m × 1 m square</b> inside the fence grows <b>one plant</b>.", [{ label: "Got it", then: check }]);
+  }
+  function check(): void {
+    say("Quick check: a garden is <b>3 m long</b> and <b>2 m wide</b>. How many plants fit?", [
+      { label: "5", then: () => say("Not quite. 3 + 2 = 5 adds the sides. Count the squares: 3 × 2 = <b>6</b>.", [{ label: "Oh, 6!", then: task }]) },
+      { label: "6", then: () => say("Yes! 3 rows of 2 squares: 3 × 2 = <b>6</b> plants.", [{ label: "Easy", then: task }]) },
+    ]);
+  }
+  function task(): void {
+    say("Your task: build a garden that uses <b>all 24 m</b> of fence. Then tell me <b>how many seeds</b> to plant.", [{ label: "I'm on it!", then: build }]);
+  }
+
+  /* ---------- Build and plant ---------- */
+  function setStep(step: "meet" | "build" | "more" | "done"): void {
+    root.dataset.phase = step;
+    const order = ["meet", "build", "more"];
+    root.querySelectorAll<HTMLElement>("[data-step]").forEach((li) => {
+      const i = order.indexOf(li.dataset.step!);
+      const now = step === "done" ? 3 : order.indexOf(step);
+      li.classList.toggle("is-done", i < now);
+      if (i === now) li.setAttribute("aria-current", "step");
+      else li.removeAttribute("aria-current");
+    });
+  }
+  function build(): void {
+    setStep("build");
+    updateGardenState({ phase: "build" });
+    $("g-panel").hidden = false;
+    $("g-notebook").hidden = false;
+    scene?.setStage("build");
+    unlock();
+    say("Drag the round handles, or use the sliders. Use exactly 24 m of fence.");
+    requestAnimationFrame(() => { drawBoard(); ScrollTrigger.refresh(); });
+  }
+  function unlock(): void {
+    busy = false;
+    for (const id of ["g-len", "g-wid", "g-seeds", "g-plant"]) $<HTMLInputElement>(id).disabled = false;
+    scene?.setInteractive(true, (l, w) => { if (l === length && w === width) return; length = l; width = w; changed(); });
+  }
+  function lock(): void {
+    busy = true;
+    for (const id of ["g-len", "g-wid", "g-seeds", "g-plant"]) $<HTMLInputElement>(id).disabled = true;
+    scene?.setInteractive(false);
+  }
+  const fenceUsed = (): number => 2 * (length + width);
+  function renderShape(): void {
+    const fence = fenceUsed();
+    $("g-len-out").textContent = `${length} m`;
+    $("g-wid-out").textContent = `${width} m`;
+    $<HTMLInputElement>("g-len").value = String(length);
+    $<HTMLInputElement>("g-wid").value = String(width);
+    $("g-fence").textContent = `${fence} / ${FENCE} m`;
+    const fill = $("g-fence-fill");
+    fill.style.width = `${Math.min(1, fence / FENCE) * 100}%`;
+    fill.classList.toggle("is-over", fence > FENCE);
+    fill.classList.toggle("is-exact", fence === FENCE);
+    $("g-fence-note").textContent = fence === FENCE ? "✓ All 24 m used" : fence > FENCE ? `${fence - FENCE} m too much` : `${FENCE - fence} m of fence left`;
+    drawBoard();
+  }
+  function changed(): void {
+    $("g-verdict").hidden = true;
+    $("g-slot").hidden = true;
+    renderShape();
+    scene?.updateGarden(length, width, false);
+  }
+
+  function plant(): void {
+    if (busy) return;
+    const fence = fenceUsed();
+    if (fence !== FENCE) {
+      say(fence > FENCE ? `That needs ${fence} m of fence. I only have 24 m!` : `You still have ${FENCE - fence} m of fence left. Use all 24 m.`);
+      return;
     }
-    if(measure){svg("text",{x:x+w/2,y:y-12,"text-anchor":"middle"},geometry).textContent=`${draft.length} m`;svg("text",{x:x+w+13,y:y+h/2+5},geometry).textContent=`${draft.width} m`;}
-    if(tool==="shape"){svg("circle",{cx:x+w,cy:y+h,r:22,class:"garden-resize-target","data-resize":"true"},geometry);svg("circle",{cx:x+w,cy:y+h,r:9,class:"garden-resize-handle","data-resize":"true"},geometry);}
+    const value = $<HTMLInputElement>("g-seeds").value;
+    const seeds = Number(value);
+    if (!value || !Number.isInteger(seeds) || seeds < 1 || seeds > 121) {
+      say("How many seeds? Type a number first.");
+      $("g-seeds").focus({ preventScroll: true });
+      return;
+    }
+    const area = length * width;
+    lock();
+    $("g-verdict").hidden = true;
+    const slot = $("g-slot");
+    const count = $("g-slot-n");
+    slot.hidden = false;
+    slot.classList.remove("is-empty", "is-exact");
+    count.textContent = String(seeds);
+    $("g-bubble").hidden = true;
+    scene?.plantSeeds(seeds, (planted) => {
+      count.textContent = String(seeds - planted);
+      slot.classList.remove("tick");
+      void slot.offsetWidth;
+      slot.classList.add("tick");
+      if (seeds - planted === 0) slot.classList.add("is-empty");
+    }, (planted) => finish(seeds, planted, area));
+  }
+
+  function verdict(ok: boolean, text: string): void {
+    $("g-mark").textContent = ok ? "✓" : "✗";
+    $("g-verdict").classList.toggle("is-ok", ok);
+    $("g-verdict-text").innerHTML = text;
+    const v = $("g-verdict");
+    v.hidden = false;
+    v.classList.remove("pop");
+    void v.offsetWidth;
+    v.classList.add("pop");
+  }
+
+  function finish(seeds: number, planted: number, area: number): void {
+    if (seeds < area) {
+      verdict(false, `Out of seeds!<br><b>${area - planted} squares</b> are still empty.`);
+      say(`We ran out! It's more than ${seeds}. Count the squares again.`);
+      unlock();
+      return;
+    }
+    if (seeds > area) {
+      verdict(false, `The garden is full,<br>but <b>${seeds - area} seeds</b> are left over.`);
+      say(`Too many seeds! It's not ${seeds}. Count the squares again.`);
+      unlock();
+      return;
+    }
+    $("g-slot").classList.replace("is-empty", "is-exact");
+    verdict(true, `Exactly right!<br><b>${length} × ${width} = ${area}</b> plants`);
+    const plan: GardenPlan = { id: Date.now(), length, width, fence: FENCE, area, prediction: seeds, correctPrediction: true, validFence: true, ink: structuredClone(ink) };
+    plans.push(plan);
+    renderSaved();
+    window.setTimeout(() => next(plan), 1700);
+  }
+
+  function next(plan: GardenPlan): void {
+    if (destroyed) return;
+    const best = Math.max(...plans.slice(0, -1).map((p) => p.area), 0);
+    if (plans.length === 1) {
+      if (plan.area === 36) { complete(); return; }
+      say(`${plan.area} plants! Now, can you use the <b>same 24 m</b> to grow <b>more than ${plan.area}</b>?`, [{ label: "Let's try!", then: () => {
+        setStep("more");
+        $("g-plan").textContent = "Plan B";
+        $<HTMLInputElement>("g-seeds").value = "";
+        $("g-verdict").hidden = true;
+        $("g-slot").hidden = true;
+        unlock();
+        say("Change the shape. Keep all 24 m of fence.");
+      } }]);
+      return;
+    }
+    if (plan.area > best) { complete(); return; }
+    say(`That's ${plan.area}, but your first garden grew ${best}. Try a different shape!`);
+    $<HTMLInputElement>("g-seeds").value = "";
+    unlock();
+  }
+
+  function complete(): void {
+    setStep("done");
+    updateGardenState({ phase: "complete", plans: [...plans] });
+    lock();
+    $("g-panel").hidden = true;
+    $("g-notebook").hidden = true;
+    $("g-slot").hidden = true;
+    $("g-verdict").hidden = true;
+    scene?.setStage("complete");
+    const lines = plans.map((p, i) => `Plan ${String.fromCharCode(65 + i)}: ${p.length} × ${p.width} = <b>${p.area} plants</b>`).join(" &nbsp;·&nbsp; ");
+    $("g-done-text").innerHTML = `${lines}<br>The same 24 m of fence can hold a different number of plants.`;
+    $("g-done").hidden = false;
+    say("Same fence, more plants. You found it!");
+    requestAnimationFrame(() => ScrollTrigger.refresh());
+  }
+
+  function renderSaved(): void {
+    $("g-saved").innerHTML = plans.map((p, i) => `<li><b>Plan ${String.fromCharCode(65 + i)}</b> ${p.length} × ${p.width} m <em>${p.area} plants ✓</em></li>`).join("");
+  }
+
+  function restart(): void {
+    plans.length = 0;
+    renderSaved();
+    length = 8;
+    width = 3;
+    ink = [];
+    history.length = 0;
+    $<HTMLInputElement>("g-seeds").value = "";
+    $("g-plan").textContent = "Plan A";
+    $("g-done").hidden = true;
+    changed();
+    build();
+  }
+
+  /* ---------- Notebook ---------- */
+  function svgEl(tag: string, attrs: Record<string, string | number>, parent: Element): SVGElement {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    parent.appendChild(el);
+    return el;
+  }
+  function drawInk(): void {
+    inkLayer.replaceChildren();
+    ink.forEach((points) => svgEl("polyline", { points: points.map(([x, y]) => `${x * boardWidth},${y * 320}`).join(" "), class: "g-stroke" }, inkLayer));
+  }
+  function drawBoard(): void {
+    const w = board.parentElement?.clientWidth ?? 0;
+    if (w > 0) boardWidth = w;
+    const unit = Math.min(26, (boardWidth - 80) / 11);
+    board.setAttribute("viewBox", `0 0 ${boardWidth} 320`);
+    const pattern = root.querySelector("#g-grid")!;
+    for (const [k, v] of Object.entries({ width: unit, height: unit, x: 40, y: 30 })) pattern.setAttribute(k, String(v));
+    root.querySelector("#g-grid-path")!.setAttribute("d", `M${unit} 0H0V${unit}`);
+    geo.replaceChildren();
+    const x = 40, y = 30, gw = length * unit, gh = width * unit;
+    svgEl("rect", { x, y, width: gw, height: gh, class: "g-board-plot" }, geo);
+    svgEl("text", { x: x + gw / 2, y: y - 10, "text-anchor": "middle" }, geo).textContent = `${length} m`;
+    svgEl("text", { x: x + gw + 10, y: y + gh / 2 + 4 }, geo).textContent = `${width} m`;
     drawInk();
   }
-  function renderDraft(): void {
-    const fence=2*(draft.length+draft.width);
-    for(const k of ["length","width"] as const){$(`garden-${k}-label`).textContent=`${draft[k]} m`;$<HTMLInputElement>(`garden-${k}`).value=String(draft[k]);}
-    $("fence-count").textContent=`${fence} / 24 m`;$("fence-fill").style.width=`${Math.min(1,fence/24)*100}%`;$("fence-fill").classList.toggle("over-budget",fence>24);
-    $("garden-mobile-fence").textContent=`Fence: ${fence} / 24 m`;
-    $("fence-note").textContent=fence>24?`${fence-24} m too much`:fence===24?"All fence used ✓":`${24-fence} m left`;
-    $("garden-equation").textContent=`2 × (${draft.length} + ${draft.width}) = ${fence} m`;$("garden-draft-label").textContent=`Plan ${String.fromCharCode(65+planNumber)}`;
-    $("garden-world-stat").hidden=!harvested;$("garden-harvest").textContent=String(draft.length*draft.width);
-    $("garden-next").hidden=!harvested||getGardenState().plans.length!==1;$("garden-compare").hidden=!harvested||getGardenState().plans.length<2;
-    $<HTMLButtonElement>("garden-undo").disabled=!history.length;drawBoard();scene?.updateGarden(draft.length,draft.width,harvested);
+  function point(e: PointerEvent): [number, number] {
+    const p = board.createSVGPoint();
+    p.x = e.clientX;
+    p.y = e.clientY;
+    const q = p.matrixTransform(board.getScreenCTM()!.inverse());
+    return [q.x, q.y];
   }
-  function phase(value: GardenState["phase"]): void {
-    updateGardenState({phase:value});root.dataset.phase=value;
-    for(const [id,at]of [["garden-intro","meet"],["garden-workspace","build"],["garden-comparison","compare"],["garden-transfer","transfer"],["garden-complete","complete"]])$(id).hidden=value!==at;
-    $("garden-guide-active").hidden=value==="meet"||value==="complete";
-    $("garden-notebook").hidden=value!=="build";
-    $("garden-direct-hint").hidden=value!=="build";
-    $("garden-feedback").hidden=value!=="build";
-    scene?.setInteractive(value==="build", (length,width)=>{if(draft.length===length&&draft.width===width)return;draft.length=length;draft.width=width;changed();});
-    all<HTMLElement>("[data-step]").forEach(el=>{if(el.dataset.step===(value==="complete"?"transfer":value))el.setAttribute("aria-current","step");else el.removeAttribute("aria-current");});
-    const titles={meet:"Help Mei<br>grow more.",build:"Your garden",compare:"Which plan<br>grows more?",transfer:"Try the idea<br>with less fence.",complete:"You found<br>the difference."};
-    $("mei-title").innerHTML=titles[value];
-    const speeches={meet:"Use all 24 metres of fence. Each square metre grows one plant.",build:"",compare:"Both use 24 m of fence.",transfer:"Both choices use 20 m.",complete:"Same fence. Different space."};
-    $("mei-speech").textContent=speeches[value];scene?.setStage(value);requestAnimationFrame(()=>{if(value==="build")drawBoard();ScrollTrigger.refresh();});
-    if(value==="compare")$("garden-instruction").textContent="Compare the plants.";
-    if(value==="transfer")$("garden-instruction").textContent="Choose the bigger planting space.";
+  on(board, "pointerdown", (event) => {
+    const e = event as PointerEvent;
+    e.preventDefault();
+    history.push(structuredClone(ink));
+    board.setPointerCapture(e.pointerId);
+    const [x, y] = point(e);
+    if (tool === "pen") {
+      stroke = [[x / boardWidth, y / 320]];
+      ink.push(stroke);
+    } else {
+      const hit = ink.findIndex((pts) => pts.some(([px, py]) => Math.hypot(px * boardWidth - x, py * 320 - y) < 18));
+      if (hit >= 0) ink.splice(hit, 1);
+    }
+    drawInk();
+  });
+  on(board, "pointermove", (event) => {
+    if (!stroke) return;
+    const [x, y] = point(event as PointerEvent);
+    if (stroke.length < 1200) stroke.push([x / boardWidth, y / 320]);
+    drawInk();
+  });
+  const endStroke = (): void => { stroke = null; };
+  on(board, "pointerup", endStroke);
+  on(board, "pointercancel", endStroke);
+  root.querySelectorAll<HTMLButtonElement>("[data-tool]").forEach((b) => on(b, "click", () => {
+    tool = b.dataset.tool as "pen" | "eraser";
+    root.querySelectorAll("[data-tool]").forEach((el) => el.setAttribute("aria-pressed", String(el === b)));
+  }));
+  on($("g-undo"), "click", () => { const last = history.pop(); if (last) { ink = last; drawInk(); } });
+  on($("g-notebook"), "toggle", () => requestAnimationFrame(drawBoard));
+
+  /* ---------- Wiring ---------- */
+  for (const [id, key] of [["g-len", "length"], ["g-wid", "width"]] as const) {
+    on($(id), "input", () => {
+      const v = Number($<HTMLInputElement>(id).value);
+      if (key === "length") length = v; else width = v;
+      changed();
+    });
   }
-  function saved():void{$("garden-saved-plans").innerHTML=getGardenState().plans.map((p,i)=>`<span><b>Plan ${String.fromCharCode(65+i)}</b> ${p.length} × ${p.width} m <em>${p.area} plants</em></span>`).join("");}
-  function changed():void{harvested=false;$("garden-feedback").textContent="";renderDraft();}
-  all<HTMLButtonElement>("[data-first]").forEach(b=>on(b,"click",()=>{all("[data-first]").forEach(el=>el.setAttribute("aria-pressed",String(el===b)));$("mei-speech").textContent="Try two shapes to find out.";}));
-  on($("garden-start"),"click",()=>{phase("build");renderDraft();$("garden-length").focus({preventScroll:true});if(window.matchMedia('(max-width:700px)').matches)requestAnimationFrame(()=>$("rooftop-scene").scrollIntoView({block:"start",behavior:"instant"}));});
-  on($("rooftop-scene"),"pointerdown",remember);
-  on($("garden-notebook"),"toggle",()=>requestAnimationFrame(drawBoard));
-  on($("garden-fullscreen"),"click",()=>{
-    if(document.fullscreenElement===root)void document.exitFullscreen().catch(()=>undefined);
-    else if(root.requestFullscreen)void root.requestFullscreen().catch(()=>{$("garden-feedback").hidden=false;$("garden-feedback").textContent="Full screen isn't available here. The garden still fills the page.";});
+  on($("g-seeds"), "keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") plant(); });
+  on($("g-plant"), "click", plant);
+  on($("g-restart"), "click", restart);
+  on($("g-full"), "click", () => {
+    if (document.fullscreenElement === root) void document.exitFullscreen().catch(() => undefined);
+    else void root.requestFullscreen?.().catch(() => undefined);
   });
-  on(document,"fullscreenchange",()=>{const active=document.fullscreenElement===root;$("garden-fullscreen").setAttribute("aria-pressed",String(active));$("garden-fullscreen").textContent=active?"⛶ Exit full screen":"⛶ Full screen";requestAnimationFrame(()=>{drawBoard();ScrollTrigger.refresh();});});
-  on(root,"click",event=>{if((event.target as Element).closest('a[href^="#"]')&&document.fullscreenElement===root)void document.exitFullscreen().catch(()=>undefined);});
-  all<HTMLButtonElement>("[data-tool]").forEach(b=>on(b,"click",()=>{tool=b.dataset.tool!;all("[data-tool]").forEach(el=>el.setAttribute("aria-pressed",String(el===b)));board.dataset.tool=tool;$("garden-tool-hint").textContent=tool==="pen"?"Write your working on the board":tool==="eraser"?"Touch a pen stroke to erase it":"Drag the round corner";drawBoard();}));
-  on($("garden-ruler"),"click",()=>{measure=!measure;$("garden-ruler").setAttribute("aria-pressed",String(measure));drawBoard();});
-  on($("garden-undo"),"click",()=>{const last=history.pop();if(last){draft=last;changed();}});
-  for(const k of ["length","width"] as const){const input=$<HTMLInputElement>(`garden-${k}`);on(input,"pointerdown",remember);on(input,"keydown",e=>{if((e as KeyboardEvent).key.startsWith("Arrow"))remember();});on(input,"input",()=>{draft[k]=Number(input.value);changed();});}
-  on($("garden-prediction"),"input",()=>{if(harvested){harvested=false;$("garden-feedback").textContent="Test again to check your new prediction.";renderDraft();}});
-  function point(e:PointerEvent):[number,number]{const p=board.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(board.getScreenCTM()!.inverse());return[q.x,q.y];}
-  on(board,"pointerdown",event=>{const e=event as PointerEvent;if(tool==="shape"&&!(e.target as Element).hasAttribute("data-resize"))return;e.preventDefault();remember();board.setPointerCapture(e.pointerId);const[x,y]=point(e);if(tool==="shape")pointerMode="shape";else if(tool==="pen"){pointerMode="draw";stroke=[[x/boardWidth,y/360]];draft.ink.push(stroke);drawInk();}else{let index=-1;draft.ink.forEach((points,i)=>{if(points.some(([px,py])=>Math.hypot(px*boardWidth-x,py*360-y)<18))index=i;});if(index>=0)draft.ink.splice(index,1);drawInk();}$<HTMLButtonElement>("garden-undo").disabled=false;});
-  on(board,"pointermove",e=>{if(!pointerMode)return;const[x,y]=point(e as PointerEvent);if(pointerMode==="shape"){draft.length=Math.max(1,Math.min(11,Math.round((x-42)/unit)));draft.width=Math.max(1,Math.min(11,Math.round((y-30)/unit)));changed();}else if(stroke&&stroke.length<1200){stroke.push([x/boardWidth,y/360]);drawInk();}});
-  const stop=():void=>{pointerMode=null;stroke=null;};on(board,"pointerup",stop);on(board,"pointercancel",stop);
-  on($("garden-test"),"click",()=>{
-    const v=$<HTMLInputElement>("garden-prediction").value,prediction=Number(v);
-    if(!v||!Number.isInteger(prediction)||prediction<1||prediction>121){$("garden-feedback").textContent="Enter your plant prediction first.";$("garden-prediction").focus({preventScroll:true});return;}
-    const fence=2*(draft.length+draft.width),area=draft.length*draft.width;
-    const plan:GardenPlan={id:Date.now(),length:draft.length,width:draft.width,fence,area,prediction,correctPrediction:prediction===area,validFence:fence===24,ink:structuredClone(draft.ink)};
-    updateGardenState({activePlan:plan});
-    if(!plan.validFence){$("garden-feedback").textContent=fence>24?`Needs ${fence} m. You have 24 m.`:`Use the remaining ${24-fence} m.`;return;}
-    const plans=getGardenState().plans,same=plans.some(p=>Math.min(p.length,p.width)===Math.min(plan.length,plan.width)&&Math.max(p.length,p.width)===Math.max(plan.length,plan.width));
-    if(!same)updateGardenState({plans:[...plans,plan].slice(-2)});
-    else updateGardenState({plans:plans.map(p=>Math.min(p.length,p.width)===Math.min(plan.length,plan.width)&&Math.max(p.length,p.width)===Math.max(plan.length,plan.width)?plan:p)});
-    harvested=true;renderDraft();saved();
-    $("garden-feedback").textContent=`${area} plants. ${plan.correctPrediction?"Prediction matches!":`You predicted ${prediction}. Count the squares.`}${same?" Try another shape.":""}`;
-    $("garden-instruction").textContent="1 square metre = 1 plant.";
+  on(document, "fullscreenchange", () => {
+    const active = document.fullscreenElement === root;
+    $("g-full").setAttribute("aria-pressed", String(active));
+    $("g-full").textContent = active ? "⛶ Exit full screen" : "⛶ Full screen";
+    requestAnimationFrame(() => { drawBoard(); placeBubble(); ScrollTrigger.refresh(); });
   });
-  on($("garden-next"),"click",()=>{planNumber=1;harvested=false;draft.ink=[];history.length=0;$<HTMLInputElement>("garden-prediction").value="";$("garden-feedback").textContent="";$("garden-instruction").textContent="Try a different shape. Same 24 m of fence.";renderDraft();});
-  on($("garden-compare"),"click",()=>{const plans=getGardenState().plans;if(plans.length<2)return;$("garden-plan-cards").innerHTML=plans.map((p,i)=>`<article class="garden-plan-card"><span class="garden-caption">Plan ${String.fromCharCode(65+i)}</span><div class="garden-mini-diagram"><div style="width:${p.length*15}px;height:${p.width*15}px"></div></div><h4>${p.length} m × ${p.width} m</h4><p><b>${p.area}</b> plants <span>24 m of fence</span></p><small>You predicted ${p.prediction} plants</small></article>`).join("");$("garden-comparison-note").textContent=`You found ${Math.abs(plans[0].area-plans[1].area)} extra plants inside the same length of fence. For these rectangular gardens, a shape closer to a square makes more room.`;phase("compare");});
-  on($("garden-experiment"),"click",()=>{harvested=false;phase("build");renderDraft();});on($("garden-twist"),"click",()=>phase("transfer"));
-  all<HTMLButtonElement>("[data-transfer]").forEach(b=>on(b,"click",()=>{all("[data-transfer]").forEach(el=>el.setAttribute("aria-pressed",String(el===b)));if(b.dataset.transfer!=="24"){$("garden-transfer-feedback").textContent="3 × 7 grows 21 plants. Compare it with 4 × 6. Both use 20 metres of fence.";return;}updateGardenState({transferPassed:true});phase("complete");}));
-  on($("garden-restart"),"click",()=>{updateGardenState({plans:[],activePlan:null,transferPassed:false});draft={length:8,width:3,ink:[]};harvested=false;planNumber=0;history.length=0;$<HTMLInputElement>("garden-prediction").value="";$("garden-transfer-feedback").textContent="";all("[data-transfer]").forEach(b=>b.removeAttribute("aria-pressed"));saved();phase("meet");renderDraft();});
-  const resize=new ResizeObserver(drawBoard);resize.observe($("garden-workspace"));resize.observe(root.querySelector('.garden-board-wrap')!);phase("meet");renderDraft();
-  void import("./rooftop").then(({mountRooftop})=>{if(destroyed)return;scene=mountRooftop($("rooftop-scene"));scene.updateGarden(draft.length,draft.width,harvested);scene.setStage(getGardenState().phase);scene.setInteractive(getGardenState().phase==="build",(length,width)=>{if(draft.length===length&&draft.width===width)return;draft.length=length;draft.width=width;changed();});}).catch(()=>{if(!destroyed){$("rooftop-scene").innerHTML='<img class="rooftop-poster" src="/img/rooftop-low-poly.webp" alt="Low-poly rooftop garden">';root.querySelector(".garden-render-note")!.textContent="Rooftop artwork";}});
-  return{destroy(){destroyed=true;controller.abort();resize.disconnect();scene?.destroy();container.replaceChildren();}};
+  on(root, "click", (event) => {
+    if ((event.target as Element).closest('a[href^="#"]') && document.fullscreenElement === root) void document.exitFullscreen().catch(() => undefined);
+  });
+
+  const seenObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    seen = true;
+    seenObserver.disconnect();
+    intro();
+  }, { threshold: 0.45 });
+  seenObserver.observe(world);
+  const resize = new ResizeObserver(() => { drawBoard(); placeBubble(); });
+  resize.observe(world);
+
+  setStep("meet");
+  renderShape();
+  for (const id of ["g-len", "g-wid", "g-seeds", "g-plant"]) $<HTMLInputElement>(id).disabled = true;
+
+  void import("./rooftop").then(({ mountRooftop }) => {
+    if (destroyed) return;
+    scene = mountRooftop($("rooftop-scene"));
+    scene.updateGarden(length, width, false);
+    scene.setStage("meet");
+    scene.onMeiMove((x, y) => { meiX = x; meiY = y; placeBubble(); });
+    intro();
+  }).catch(() => {
+    if (destroyed) return;
+    $("rooftop-scene").innerHTML = '<img class="rooftop-poster" src="/img/rooftop-low-poly.webp" alt="Mei\'s rooftop garden">';
+    seen = true;
+    started = true;
+    say("Hi! I'm Auntie Mei. Can you help me with my rooftop garden?", [{ label: "Sure! What do you need?", then: rules }]);
+  });
+
+  return {
+    destroy() {
+      destroyed = true;
+      controller.abort();
+      seenObserver.disconnect();
+      resize.disconnect();
+      scene?.destroy();
+      container.replaceChildren();
+    },
+  };
 }

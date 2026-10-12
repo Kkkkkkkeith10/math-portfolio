@@ -428,5 +428,5 @@ body.on-dark .dots a.on { border-color: var(--accent); }
 /* The opening introduces Keith; the game gets the full canvas below it. */
 .hero__layout{display:block;max-width:1080px;padding:4.5rem 1.5rem 4rem}.hero__copy{max-width:850px}.hero__title{font-size:clamp(2.8rem,6.5vw,5.5rem)}.hero__lede{font-size:1.05rem;max-width:64ch}.hero__stats{gap:2.5rem}.hero__stats b{font-size:2rem}
 .section--game{max-width:none;padding:2.5rem 0 3rem;margin:0}.section--game>.section__head{max-width:1080px;padding:0 1.5rem;margin:0 auto 2.4rem}.section--game>.experience-caption{max-width:1080px;padding:0 1.5rem;margin:1.2rem auto 0}
+.section--tint>.experience-caption{max-width:1080px;margin:1.2rem auto 0;font-size:.9rem;font-weight:600;color:var(--teal)}
 @media(max-width:700px){.hero__layout{padding:3rem 1.2rem}.hero__title{font-size:clamp(2.4rem,8vw,3.6rem)}.hero__stats{gap:1.3rem}.hero__stats b{font-size:1.7rem}.section--game>.section__head,.section--game>.experience-caption{padding-left:1.2rem;padding-right:1.2rem}.section--game{padding-top:1.5rem}}
-body:has(.dots a[href="#game"].on) .dots{visibility:hidden}

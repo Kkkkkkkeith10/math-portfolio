@@ -6,12 +6,12 @@
     <title>Keith Lau · Product Architect, maths learning</title>
     <meta
       name="description"
-      content="Keith Lau’s product and engineering portfolio: a playable low-poly maths garden, the knowledge behind MathsAI and a platform adopted by 30+ paying schools."
+      content="Keith Lau’s portfolio: a playable maths garden, how MathsAI finds a student’s learning gap, and a platform used by 30+ paying schools."
     />
     <meta property="og:title" content="Keith Lau · Product Architect, maths learning" />
     <meta
       property="og:description"
-      content="Play a rooftop garden mission, explore real misconception data, and see how I built MathsAI from classroom research to 30+ paying schools."
+      content="Play a rooftop garden mission, then see how MathsAI finds a learning gap and tells the teacher."
     />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#f6f1e7" />
@@ -25,197 +25,79 @@
     <a class="skip" href="#main">Skip to content</a>
     <div class="progress" aria-hidden="true"><i id="progress-bar"></i></div>
 
-    <nav class="dots" aria-label="Sections">
-      <a href="#top" data-label="Start"><span class="sr">Start</span></a>
-      <a href="#game" data-label="The game"><span class="sr">The game</span></a>
-      <a href="#error" data-label="Diagnosis & knowledge"><span class="sr">Diagnosis and knowledge</span></a>
-      <a href="#catch" data-label="The teacher view"><span class="sr">The teacher view</span></a>
-      <a href="#reward" data-label="The next challenge"><span class="sr">The next challenge</span></a>
-      <a href="#loop" data-label="What I built"><span class="sr">What I built</span></a>
-      <a href="#proof" data-label="Into schools"><span class="sr">Into schools</span></a>
-      <a href="#experience" data-label="Experience"><span class="sr">Experience</span></a>
-      <a href="#contact" data-label="Contact"><span class="sr">Contact</span></a>
-    </nav>
-
-    <div class="site-nav"><a href="#top">Keith Lau<span> / Selected work</span></a><nav aria-label="Main navigation"><a href="#game">Play</a><a href="#loop">My work</a><a href="#contact">Contact ↗</a></nav></div>
+    <div class="site-nav"><a href="#top">Keith Lau<span> / Selected work</span></a><nav aria-label="Main navigation"><a href="#game">Play</a><a href="#loop">My work</a><a href="#contact">Contact</a></nav></div>
     <main id="main">
-      <!-- HERO -->
       <header class="hero" id="top">
         <div class="hero__grid" aria-hidden="true"></div>
         <div class="hero__inner hero__layout">
           <div class="hero__copy">
             <p class="eyebrow" data-hero>Keith Lau · Product Architect · Hong Kong</p>
-            <h1 class="hero__title" aria-label="Maths students pick up a pen for, and teachers can see.">
-              <span class="line"><span data-split>Maths students pick</span></span>
-              <span class="line"><span data-split>up a pen for,</span></span>
-              <span class="line"><span data-split><em>and teachers can see.</em></span></span>
+            <h1 class="hero__title" aria-label="A maths game that finds the gap and tells the teacher.">
+              <span class="line"><span data-split>A maths game</span></span>
+              <span class="line"><span data-split>that finds the gap</span></span>
+              <span class="line"><span data-split><em>and tells the teacher.</em></span></span>
             </h1>
-            <p class="hero__lede" data-hero>I built MathsAI, an adaptive maths platform used by 30+ paying schools. Play the garden, see how the system finds a learning gap, and watch how teachers can help during the lesson.</p>
+            <p class="hero__lede" data-hero>I built MathsAI, used by 30+ paying schools. Play a mission, then see how the system finds a gap and tells the teacher.</p>
             <div class="hero__stats" data-hero>
               <div><b data-count="2000" data-suffix="+">2,000+</b><span>users in 18 months</span></div>
               <div><b data-count="750000" data-prefix="~">~750,000</b><span>questions answered</span></div>
               <div><b data-count="30" data-suffix="+">30+</b><span>paying schools</span></div>
             </div>
-            <div class="hero__actions" data-hero><a class="btn" href="#game">Try the garden mission ↗</a><a class="hero__case-link" href="#loop">Explore what I built →</a></div>
+            <div class="hero__actions" data-hero><a class="btn" href="#game">Try the garden</a></div>
           </div>
         </div>
       </header>
 
-
       <section class="section section--game" id="game">
-        <div class="section__head" data-reveal><p class="kicker">01 · The game</p><h2>24 metres of fence.<br>One rooftop garden. What would you build?</h2><p class="lead">Help Mei grow as many plants as possible. Drag the garden, sketch in your notebook and test two plans.</p></div>
+        <div class="section__head" data-reveal><p class="kicker">01 · Play</p><h2>Help Mei grow the most plants<br>with 24 m of fence.</h2></div>
         <div id="game-mount"></div>
-        <p class="experience-caption"><span>Learning through real-life decisions</span> This playable portfolio mission explores mathematical modelling: using maths to make and test a decision. The prerequisite diagnosis and live-tracking approach below comes from MathsAI.</p>
       </section>
+
       <section class="section" id="error">
         <div class="section__head" data-reveal>
-          <p class="kicker">02 · Inside the diagnosis</p>
-          <h2>A wrong answer can start<br>with an earlier missing skill.</h2>
-          <p class="lead">MathsAI reads the student's working and checks the earlier skills the question depends on. Explore the real curriculum map around Area below.</p>
+          <p class="kicker">02 · Find the gap</p>
+          <h2>A wrong answer points<br>to an earlier gap.</h2>
+          <p class="lead">Tap a student's answer. The map shows which earlier skill went wrong.</p>
         </div>
-
         <div id="knowledge-explorer"></div>
-        <details id="bank-examples" class="bank-examples"><summary>See the student's working <span>↗</span></summary>
-        <div class="card diag" data-scene="error">
-          <div class="diag__bar">
-            <div class="seg" role="tablist" aria-label="Question" id="err-q"></div>
-            <button class="replay" type="button" data-replay><span aria-hidden="true">↻</span> Replay</button>
-          </div>
-          <div class="seg seg--small" role="tablist" aria-label="Student's mistake" id="err-e"></div>
-
-          <div class="diag__grid">
-            <div class="diag__page">
-              <p class="mini">What the student wrote</p>
-              <div class="sheet">
-                <p class="sheet__q" id="err-prompt"></p>
-                <svg class="sheet__shape" id="err-shape" viewBox="0 0 220 120" aria-hidden="true"></svg>
-                <div class="sheet__lines" id="err-lines"></div>
-              </div>
-              <div class="should">
-                <span class="mini">It should read</span>
-                <p class="m" id="err-should"></p>
-              </div>
-            </div>
-
-            <div class="diag__read">
-              <p class="mini">What it is, in maths</p>
-              <div class="read__sym" id="err-sym"></div>
-              <div class="read__tags" id="err-tags"></div>
-              <dl class="read__txt">
-                <dt>What happened</dt>
-                <dd id="err-desc"></dd>
-                <dt>The misconception</dt>
-                <dd id="err-mis"></dd>
-              </dl>
-            </div>
-          </div>
-
-          <div class="tree" id="err-tree" aria-label="Where this error points on the prerequisite map">
-            <div class="tree__node tree__node--topic" id="tn-topic"></div>
-            <div class="tree__arrow" aria-hidden="true"></div>
-            <div class="tree__node tree__node--err" id="tn-err"></div>
-            <div class="tree__arrow" aria-hidden="true"></div>
-            <div class="tree__node tree__node--link" id="tn-link"></div>
-          </div>
-          <p class="fine">
-            Entries are copied from the real question bank and curriculum map (topic 4M2). The full bank, with 46
-            questions and 64 catalogued error entries in this English-language snapshot, and the rest of the map, stay private.
-          </p>
-        </div>
-        </details>
       </section>
+
       <section class="section section--tint" id="catch">
-        <div class="section__head" data-reveal><p class="kicker">03 · The teacher's view</p><h2>A class of 30.<br>When does the teacher know who is stuck?</h2><p class="lead">Marking by hand means finding out later. Live feedback lets the teacher help while the lesson is still happening. Run both together.</p></div>
+        <div class="section__head" data-reveal><p class="kicker">03 · Tell the teacher</p><h2>A class of 30.<br>Who needs help, and when?</h2></div>
         <div id="teacher-experience"></div>
-        <p class="experience-caption"><span>Shipped in MathsAI</span> I built the real-time dashboard and AI error analysis. Teacher feedback time fell from about one day to five minutes. This view illustrates the experience using authored examples.</p>
+        <p class="experience-caption">Built in MathsAI: feedback time went from a day to five minutes.</p>
       </section>
+
       <section class="section" id="reward">
-        <div class="section__head" data-reveal><p class="kicker">04 · The right practice</p><h2>Practise the skill<br>that needs help.</h2><p class="lead">If a student mixes up area and perimeter, practise counting the space inside a shape. The next question is chosen from what they got wrong.</p></div>
+        <div class="section__head" data-reveal><p class="kicker">04 · Practise</p><h2>Every student gets<br>their own practice.</h2><p class="lead">MathsAI keeps a profile for each student. Each answer updates it and picks the next question.</p></div>
         <div id="next-challenge"></div>
       </section>
+
       <section class="section section--tint" id="loop">
-        <div class="section__head" data-reveal><p class="kicker">05 · My part</p><h2>I connected the curriculum,<br>student working and teacher feedback.</h2></div>
+        <div class="section__head" data-reveal><p class="kicker">05 · My part</p><h2>What I built, and where it went.</h2></div>
         <div id="build-story"></div>
       </section>
-      <section class="section section--tint" id="proof">
-        <div class="section__head" data-reveal>
-          <p class="kicker">06 · The track record behind it</p>
-          <h2>200+ pitches became 150 collaborations and 30+ paying schools.</h2>
-          <p class="lead">
-            The platform under this idea is already in classrooms. I defined who to approach, how to price it, how to
-            position it and how a pilot turns into a purchase. Tap a stage to see my part in it.
-          </p>
-        </div>
 
-        <div class="card funnel" data-reveal>
-          <div class="funnel__bars" id="funnel-bars" role="tablist" aria-label="Go-to-market stages">
-            <button role="tab" aria-selected="true" class="bar" data-stage="0" style="--w: 100%">
-              <b>200+</b><span>schools pitched</span>
-            </button>
-            <button role="tab" aria-selected="false" class="bar" data-stage="1" style="--w: 75%">
-              <b>150</b><span>early collaborations</span>
-            </button>
-            <button role="tab" aria-selected="false" class="bar" data-stage="2" style="--w: 30%">
-              <b>30+</b><span>paying schools</span>
-            </button>
-          </div>
-          <div class="funnel__detail" id="funnel-detail" aria-live="polite"></div>
-        </div>
-
-        <div class="cards3">
-          <article class="card feat" data-reveal>
-            <p class="kicker">Heard</p>
-            <h3>“Can I see what students are writing?”</h3>
-            <p>A school principal asked for it. I turned it into a real-time dashboard with AI error analysis, so a
-              teacher can adjust pace during the lesson.</p>
-          </article>
-          <article class="card feat" data-reveal>
-            <p class="kicker">Heard</p>
-            <h3>Teachers wanted the picture over time</h3>
-            <p>Student analytics came out of classroom visits and teacher interviews across 50+ schools.</p>
-          </article>
-          <article class="card feat" data-reveal>
-            <p class="kicker">Heard</p>
-            <h3>Practice should start in one tap</h3>
-            <p>Instant adaptive practice: the next set is chosen from what the student actually got wrong.</p>
-          </article>
-        </div>
-      </section>
-
-      <!-- 8 EXPERIENCE -->
       <section class="section" id="experience">
         <div class="section__head" data-reveal>
-          <p class="kicker">07 · Experience</p>
-          <h2>One person across product, engineering and the classroom.</h2>
-          <p class="lead">Filter by the kind of work. Open a card for the detail.</p>
-        </div>
-
-        <div class="chips" id="chips" role="group" aria-label="Filter by kind of work" data-reveal>
-          <button aria-pressed="true" data-tag="all">All</button>
-          <button aria-pressed="false" data-tag="product">Product</button>
-          <button aria-pressed="false" data-tag="engineering">Engineering</button>
-          <button aria-pressed="false" data-tag="gtm">Go-to-market</button>
-          <button aria-pressed="false" data-tag="education">Education</button>
+          <p class="kicker">06 · Experience</p>
+          <h2>Product, engineering and the classroom.</h2>
         </div>
 
         <div class="xp" id="xp">
-          <article class="card xp__card" data-tags="product engineering gtm education" data-reveal>
+          <article class="card xp__card" data-reveal>
             <button class="xp__toggle" aria-expanded="false">
               <span><b>MathsAI</b><small>Gamenoodlesoup · Product Architect · Nov 2024 – Jul 2026</small></span>
               <i aria-hidden="true"></i>
             </button>
             <div class="xp__body">
               <ul>
-                <li>Launched an adaptive maths platform to 2,000+ users within 18 months, about 750,000 questions answered, by setting the vision and roadmap and owning delivery.</li>
-                <li>Cut teacher feedback time from one day to five minutes with a real-time dashboard and AI error analysis.</li>
-                <li>Shipped three features from research in 50+ schools: the dashboard, student analytics and instant adaptive practice.</li>
-                <li>Converted 200+ pitches into 150 early collaborations and 30+ paying schools.</li>
-                <li>Built the AI engine that diagnoses handwritten working step by step.</li>
+                <li>Led the product from idea to 2,000+ users and 30+ paying schools in 18 months, and built the engine that reads handwritten working.</li>
               </ul>
             </div>
           </article>
 
-          <article class="card xp__card" data-tags="product engineering gtm" data-reveal>
+          <article class="card xp__card" data-reveal>
             <button class="xp__toggle" aria-expanded="false">
               <span><b>Pocari Sweat Club</b><small>Member app for Otsuka’s Pocari Sweat brand</small></span>
               <i aria-hidden="true"></i>
@@ -229,7 +111,7 @@
             </div>
           </article>
 
-          <article class="card xp__card" data-tags="engineering product" data-reveal>
+          <article class="card xp__card" data-reveal>
             <button class="xp__toggle" aria-expanded="false">
               <span><b>AI Interview System</b><small>School interview day</small></span>
               <i aria-hidden="true"></i>
@@ -241,7 +123,7 @@
             </div>
           </article>
 
-          <article class="card xp__card" data-tags="education product" data-reveal>
+          <article class="card xp__card" data-reveal>
             <button class="xp__toggle" aria-expanded="false">
               <span><b>Make Makers Matter</b><small>Government-funded maker programme</small></span>
               <i aria-hidden="true"></i>
@@ -253,7 +135,7 @@
             </div>
           </article>
 
-          <article class="card xp__card" data-tags="education engineering" data-reveal>
+          <article class="card xp__card" data-reveal>
             <button class="xp__toggle" aria-expanded="false">
               <span><b>UX Gym</b><small>Smartphone skills for older adults</small></span>
               <i aria-hidden="true"></i>
@@ -265,7 +147,7 @@
             </div>
           </article>
 
-          <article class="card xp__card" data-tags="education" data-reveal>
+          <article class="card xp__card" data-reveal>
             <button class="xp__toggle" aria-expanded="false">
               <span><b>Stematics</b><small>Founder · Jul 2023 – present</small></span>
               <i aria-hidden="true"></i>
@@ -285,7 +167,6 @@
         </p>
       </section>
 
-      <!-- CONTACT -->
       <footer class="section contact" id="contact">
         <div class="section__head" data-reveal>
           <p class="kicker">Let’s talk</p>

@@ -4,6 +4,14 @@ export interface RooftopHandle {
   updateGarden(length: number, width: number, harvest: boolean): void;
   setStage(stage: "meet" | "build" | "compare" | "transfer" | "complete"): void;
   setInteractive(enabled: boolean, onResize?: (length: number, width: number) => void): void;
+  /** Mei walks from the hut to the garden. */
+  walkIn(onDone?: () => void): void;
+  /** A small hop, used when Mei starts a new line. */
+  hop(): void;
+  /** Plant one seed per square, one at a time, until the seeds or the squares run out. */
+  plantSeeds(seeds: number, onPlant: (planted: number) => void, onDone: (planted: number) => void): void;
+  /** Called with Mei's head position in pixels, relative to the scene, whenever it changes. */
+  onMeiMove(listener: (x: number, y: number) => void): void;
   destroy(): void;
 }
 
@@ -27,10 +35,15 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     note.textContent = "The planning board is ready to play.";
     fallback.append(artwork, note);
     host.append(fallback);
+    let squares = 32;
     return {
-      updateGarden: () => undefined,
+      updateGarden: (length, width) => { squares = length * width; },
       setStage: () => undefined,
       setInteractive: () => undefined,
+      walkIn: (onDone) => onDone?.(),
+      hop: () => undefined,
+      plantSeeds: (seeds, onPlant, onDone) => { const n = Math.min(seeds, squares); onPlant(n); onDone(n); },
+      onMeiMove: () => undefined,
       destroy: () => { fallback.remove(); host.classList.remove("rooftop-unavailable"); },
     };
   }
@@ -308,8 +321,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
 
   // Auntie Mei: faceted straw hat, small round glasses and a sage watering can.
   const mei = new THREE.Group();
-  mei.position.set(4.89, roofY, 2.66);
-  mei.rotation.y = 0.25;
+  const meiStart = new THREE.Vector3(4.14, roofY, -1.7);
+  const meiEnd = new THREE.Vector3(4.89, roofY, 2.66);
+  mei.position.copy(meiStart);
+  mei.rotation.y = Math.atan2(meiEnd.x - meiStart.x, meiEnd.z - meiStart.z);
   model.add(mei);
   cylinder(mei, "#438e84", 0, 0.68, 0, 0.29, 0.51, 1.05, 7);
   box(mei, "#d7e2c7", 0, 0.7, 0.28, 0.42, 0.64, 0.055);
@@ -381,7 +396,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   let destroyed = false;
   let isVisible = true;
   let renderId = 0;
-  let animationStart = 0;
+  let plantToken = 0;
+  let meiListener: ((x: number, y: number) => void) | null = null;
+  /** Running animations. Each returns true when it has finished. */
+  const anims = new Set<(now: number) => boolean>();
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   // These controls are actual raycastable 3D assets. The DOM markers simply make
@@ -538,23 +556,119 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   canvas.addEventListener("pointercancel", finishDrag);
   canvas.addEventListener("lostpointercapture", finishDrag);
 
+  const meiHead = new THREE.Vector3();
   function render(): void {
     if (destroyed || !isVisible || document.hidden) return;
     updateOverlay();
     renderer.render(scene, camera);
+    if (meiListener) {
+      mei.localToWorld(meiHead.set(0, 2.25, 0)).project(camera);
+      meiListener((meiHead.x + 1) * canvas.clientWidth / 2, (1 - meiHead.y) * canvas.clientHeight / 2);
+    }
   }
-  function stopAnimation(): void {
+  function loop(now: number): void {
+    renderId = 0;
+    if (destroyed) return;
+    anims.forEach((step) => { if (step(now)) anims.delete(step); });
+    render();
+    if (anims.size && isVisible && !document.hidden) renderId = requestAnimationFrame(loop);
+  }
+  function run(step: (now: number) => boolean): void {
+    anims.add(step);
+    if (!renderId && isVisible && !document.hidden) renderId = requestAnimationFrame(loop);
+  }
+  function pause(): void {
     if (renderId) cancelAnimationFrame(renderId);
     renderId = 0;
-    if (cropGroup) cropGroup.scale.y = 1;
   }
-  function animate(time: number): void {
-    renderId = 0;
-    if (destroyed || !isVisible || document.hidden || !cropGroup) return;
-    const progress = Math.min(1, (time - animationStart) / 720);
-    cropGroup.scale.y = 0.08 + 0.92 * (1 - (1 - progress) ** 3);
-    render();
-    if (progress < 1) renderId = requestAnimationFrame(animate);
+  function resume(): void {
+    if (anims.size && !renderId) renderId = requestAnimationFrame(loop);
+    else render();
+  }
+  const backOut = (p: number): number => 1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2;
+
+  function walkIn(onDone?: () => void): void {
+    const face = Math.atan2(meiEnd.x - meiStart.x, meiEnd.z - meiStart.z);
+    if (reducedMotion.matches) {
+      mei.position.copy(meiEnd);
+      mei.rotation.set(0, 0.25, 0);
+      render();
+      onDone?.();
+      return;
+    }
+    mei.position.copy(meiStart);
+    mei.rotation.set(0, face, 0);
+    let t0 = 0;
+    run((now) => {
+      if (!t0) t0 = now;
+      const p = Math.min(1, (now - t0) / 2400);
+      const eased = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
+      mei.position.lerpVectors(meiStart, meiEnd, eased);
+      mei.position.y = roofY + Math.abs(Math.sin(p * Math.PI * 7)) * 0.1 * (1 - p);
+      mei.rotation.z = Math.sin(p * Math.PI * 7) * 0.06 * (1 - p);
+      // Turn to face the student over the last part of the walk.
+      mei.rotation.y = face + (0.25 - face) * Math.max(0, (p - 0.75) / 0.25);
+      if (p < 1) return false;
+      mei.position.copy(meiEnd);
+      mei.rotation.set(0, 0.25, 0);
+      onDone?.();
+      return true;
+    });
+  }
+
+  function hop(): void {
+    if (reducedMotion.matches) return;
+    let t0 = 0;
+    run((now) => {
+      if (!t0) t0 = now;
+      const p = Math.min(1, (now - t0) / 380);
+      mei.position.y = roofY + Math.sin(p * Math.PI) * 0.22;
+      return p >= 1;
+    });
+  }
+
+  function plantSeeds(seeds: number, onPlant: (planted: number) => void, onDone: (planted: number) => void): void {
+    updateGarden(currentLength, currentWidth, false);
+    const lx = currentLength * unit;
+    const wz = currentWidth * unit;
+    const cells: [number, number][] = [];
+    for (let row = 0; row < currentWidth; row += 1) {
+      for (let column = 0; column < currentLength; column += 1) cells.push([-lx / 2 + (column + 0.5) * unit, -wz / 2 + (row + 0.5) * unit]);
+    }
+    const total = Math.max(0, Math.min(seeds, cells.length));
+    const token = ++plantToken;
+    if (reducedMotion.matches || total === 0) {
+      cells.slice(0, total).forEach(([x, z], i) => plant(cropGroup!, x, z, i * 7, 1.25));
+      render();
+      onPlant(total);
+      onDone(total);
+      return;
+    }
+    const gap = Math.max(70, Math.min(240, 3000 / total));
+    const growing: { item: THREE.Group; t0: number }[] = [];
+    let start = 0;
+    let planted = 0;
+    run((now) => {
+      if (token !== plantToken || !cropGroup) return true;
+      if (!start) start = now;
+      const due = Math.min(total, Math.floor((now - start) / gap) + 1);
+      while (planted < due) {
+        const [x, z] = cells[planted]!;
+        const item = plant(cropGroup, x, z, planted * 7, 1.25);
+        item.scale.setScalar(0.01);
+        growing.push({ item, t0: now });
+        planted += 1;
+        onPlant(planted);
+      }
+      for (let i = growing.length - 1; i >= 0; i -= 1) {
+        const p = Math.min(1, (now - growing[i]!.t0) / 320);
+        growing[i]!.item.scale.setScalar(Math.max(0.01, 1.25 * backOut(p)));
+        if (p >= 1) growing.splice(i, 1);
+      }
+      if (planted < total || growing.length) return false;
+      onDone(total);
+      return true;
+    });
   }
   function resize(): void {
     if (destroyed) return;
@@ -578,7 +692,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
 
   function updateGarden(length: number, width: number, harvest: boolean): void {
     if (destroyed) return;
-    stopAnimation();
+    plantToken += 1;
     garden.clear();
     const safeLength = Number.isFinite(length) ? Math.max(1, Math.min(11, Math.round(length))) : 6;
     const safeWidth = Number.isFinite(width) ? Math.max(1, Math.min(11, Math.round(width))) : 6;
@@ -630,11 +744,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       }
     }
     canvas.setAttribute("aria-label", `Auntie Mei’s rooftop. The garden is ${safeLength} by ${safeWidth} metres${harvest ? `, growing ${safeLength * safeWidth} plants` : ", ready to plant"}.`);
-    if (harvest && isVisible && !document.hidden && !reducedMotion.matches) {
-      cropGroup.scale.y = 0.08;
-      animationStart = performance.now();
-      renderId = requestAnimationFrame(animate);
-    }
     render();
   }
 
@@ -642,25 +751,32 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   resizeObserver.observe(host);
   const visibilityObserver = new IntersectionObserver((entries) => {
     isVisible = entries.some((entry) => entry.isIntersecting);
-    if (!isVisible) stopAnimation();
-    else render();
+    if (!isVisible) pause();
+    else resume();
   }, { rootMargin: "100px" });
   visibilityObserver.observe(host);
   const onVisibility = (): void => {
-    if (document.hidden) stopAnimation();
-    else render();
+    if (document.hidden) pause();
+    else resume();
   };
   document.addEventListener("visibilitychange", onVisibility);
-  const onMotion = (): void => { if (reducedMotion.matches) { stopAnimation(); render(); } };
+  const onMotion = (): void => render();
   reducedMotion.addEventListener("change", onMotion);
   resize();
   updateGarden(8, 4, false);
 
   return {
     updateGarden,
+    walkIn,
+    hop,
+    plantSeeds,
+    onMeiMove(listener) {
+      meiListener = listener;
+      render();
+    },
     setStage(stage) {
       currentStage = stage;
-      mei.rotation.y = stage === "complete" ? -0.18 : stage === "compare" ? 0.12 : 0.25;
+      if (stage !== "meet") mei.rotation.y = stage === "complete" ? -0.18 : 0.25;
       resize();
     },
     setInteractive(enabled, onResize) {
@@ -678,7 +794,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      stopAnimation();
+      pause();
+      anims.clear();
       resizeObserver.disconnect();
       visibilityObserver.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);

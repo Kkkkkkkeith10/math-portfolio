@@ -1,8 +1,6 @@
 import "./learning-flow.css";
 import { QUESTIONS, m } from "../data/area";
 import type { BankError } from "../data/area";
-import { subscribeGarden } from "../game/state";
-import type { GardenState } from "../game/state";
 
 const question = QUESTIONS[0];
 const perimeterError = question.errors[0];
@@ -13,22 +11,19 @@ const help: Record<number, BankError> = {
 };
 const liveOrder = [14, 3, 22, 8, 27, 0, 18, 11, 25, 5, 16, 1, 29, 9, 20, 6, 13, 24, 2, 17, 28, 10, 21, 4, 15, 26, 7, 19, 12, 23];
 
-function initTeacher(host: HTMLElement): (state: GardenState) => void {
+function initTeacher(host: HTMLElement): void {
   type Mode = "manual" | "live";
   interface Lane { mode: Mode; dots: HTMLButtonElement[]; clock: HTMLElement; note: HTMLElement; order: number[]; revealed: number; duration: number; }
   host.innerHTML = `
     <div class="lf-comparison">
-      <header class="lf-comparison__head"><p>Same 30 pupils. Same working.<br><b>A different moment to help.</b></p><button class="lf-replay" id="lf-sim-replay" type="button">↻ Replay</button></header>
+      <button class="lf-replay" id="lf-sim-replay" type="button">↻ Replay</button>
       <div class="lf-lanes">${(["manual", "live"] as Mode[]).map((mode) => `
         <article class="lf-lane lf-lane--${mode}">
-          <div class="lf-lane__head"><div><span>${mode === "manual" ? "Reading each notebook" : "Seeing the class together"}</span><h3>${mode === "manual" ? "Manual marking" : "MathsAI live feedback"}</h3></div><b class="lf-clock" id="lf-${mode}-clock">${mode === "manual" ? "0h 00m" : "0:00"}</b></div>
-          <div class="lf-pupils" id="lf-${mode}-pupils" role="group" aria-label="${mode === "manual" ? "Manual marking" : "MathsAI feedback"}: 30 illustrative pupils">${Array.from({ length: 30 }, (_, index) => `<button type="button" data-lf-pupil="${index}" class="lf-pupil" aria-label="Example pupil ${index + 1}: work not checked" disabled>${String(index + 1).padStart(2, "0")}</button>`).join("")}</div>
-          <p class="lf-lane__note" id="lf-${mode}-note">${mode === "manual" ? "One notebook at a time…" : "Errors appear while the lesson is running."}</p>
+          <div class="lf-lane__head"><h3>${mode === "manual" ? "Marking by hand" : "MathsAI"}</h3><b class="lf-clock" id="lf-${mode}-clock">${mode === "manual" ? "0h 00m" : "0:00"}</b></div>
+          <div class="lf-pupils" id="lf-${mode}-pupils" role="group" aria-label="${mode === "manual" ? "Marking by hand" : "MathsAI"}: 30 students">${Array.from({ length: 30 }, (_, i) => `<button type="button" class="lf-pupil" aria-label="Student ${i + 1}: not checked yet" disabled></button>`).join("")}</div>
+          <p class="lf-lane__note" id="lf-${mode}-note"></p>
         </article>`).join("")}</div>
-      <div class="lf-legend"><span><i class="lf-legend__unchecked"></i>Not checked</span><span><i class="lf-legend__matches"></i>Working matches</span><span><i class="lf-legend__help"></i>Needs help · select a pupil</span></div>
-      <div class="lf-feedback" id="lf-feedback-details" aria-live="polite"><p class="lf-feedback__hint">Select a pupil as their working is checked.</p></div>
-      <p class="lf-comparison__caption">Illustrative comparison using 30 example attempts. Reported teacher feedback time: next day → five minutes.</p>
-      <p class="lf-your-attempt" id="lf-reader-attempt" hidden></p>
+      <div class="lf-feedback" id="lf-feedback-details" aria-live="polite"><p class="lf-feedback__hint">Tap a red dot to see what that student wrote.</p></div>
     </div>`;
 
   const root = host.querySelector<HTMLElement>(".lf-comparison")!;
@@ -39,7 +34,7 @@ function initTeacher(host: HTMLElement): (state: GardenState) => void {
     dots: Array.from(host.querySelectorAll<HTMLButtonElement>(`#lf-${mode}-pupils button`)),
     clock: host.querySelector<HTMLElement>(`#lf-${mode}-clock`)!,
     note: host.querySelector<HTMLElement>(`#lf-${mode}-note`)!,
-    order: mode === "manual" ? Array.from({ length: 30 }, (_, index) => index) : liveOrder,
+    order: mode === "manual" ? Array.from({ length: 30 }, (_, i) => i) : liveOrder,
     revealed: 0,
     duration: mode === "manual" ? 8 : 1.8,
   }));
@@ -54,9 +49,10 @@ function initTeacher(host: HTMLElement): (state: GardenState) => void {
   function pick(index: number, announce = true): void {
     selected = index;
     const error = help[index];
-    const action = !error ? "Let this pupil move on while you help the pupils who need it." : error === perimeterError ? "Help separate the edge from the space inside." : "Build equal rows, then connect the count to multiplication.";
-    detail.innerHTML = `<div><span class="lf-small">Example pupil ${index + 1} · 8 cm × 6 cm</span><div class="lf-handwriting">${(error?.wrote ?? question.correct).map((line) => `<span>${m(line)}</span>`).join("")}</div></div><div class="lf-feedback__action"><span class="lf-small">Teacher’s next move</span><h3>${error ? "This pupil needs help." : "The working matches."}</h3><p>${action}</p>${error ? `<a href="#reward">See the follow-up ↓</a>` : ""}</div>`;
-    lanes.forEach((lane) => lane.dots.forEach((dot, pupil) => { dot.classList.toggle("is-selected", pupil === index && !dot.disabled); dot.setAttribute("aria-pressed", String(pupil === index && !dot.disabled)); }));
+    detail.innerHTML = error
+      ? `<div class="lf-handwriting">${error.wrote.map((line) => `<span>${m(line)}</span>`).join("")}<i aria-label="wrong">✗</i></div><p class="lf-feedback__line">Teacher identify student in need, immediately.</p>`
+      : `<div class="lf-handwriting lf-handwriting--ok">${question.correct.map((line) => `<span>${m(line)}</span>`).join("")}<i aria-label="correct">✓</i></div><p class="lf-feedback__line">Correct. This student can move on.</p>`;
+    lanes.forEach((lane) => lane.dots.forEach((dot, i) => { dot.classList.toggle("is-selected", i === index && !dot.disabled); dot.setAttribute("aria-pressed", String(i === index && !dot.disabled)); }));
     if (error && announce) window.dispatchEvent(new CustomEvent("knowledge:error", { detail: { code: error.code, questionId: question.id } }));
   }
 
@@ -71,7 +67,7 @@ function initTeacher(host: HTMLElement): (state: GardenState) => void {
         dot.classList.add(help[pupil] ? "needs-help" : "matches");
         dot.classList.toggle("is-selected", pupil === selected);
         dot.setAttribute("aria-pressed", String(pupil === selected));
-        dot.setAttribute("aria-label", `Example pupil ${pupil + 1}: ${help[pupil] ? "needs help; select to see their working" : "working matches"}`);
+        dot.setAttribute("aria-label", `Student ${pupil + 1}: ${help[pupil] ? "needs help. Tap to see their working" : "correct"}`);
       }
       if (lane.mode === "manual") {
         const minutes = Math.round(progress * 24 * 60);
@@ -80,8 +76,7 @@ function initTeacher(host: HTMLElement): (state: GardenState) => void {
         const seconds = Math.round(progress * 5 * 60);
         lane.clock.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
       }
-      const flagged = lane.order.slice(0, lane.revealed).filter((pupil) => help[pupil]).length;
-      lane.note.textContent = progress === 1 ? lane.mode === "manual" ? "7 pupils needed help. The teacher finds out the next day." : "7 pupils need help. The teacher can respond during the lesson." : `${lane.revealed} / 30 checked${flagged ? ` · ${flagged} need help` : ""}`;
+      lane.note.textContent = progress < 1 ? "" : lane.mode === "manual" ? "The teacher finds out the next day." : "The teacher sees who needs help during the lesson.";
     });
     if (selected === null && lanes[1].revealed === 30) pick(2, false);
   }
@@ -110,18 +105,18 @@ function initTeacher(host: HTMLElement): (state: GardenState) => void {
     selected = null;
     lanes.forEach((lane) => {
       lane.revealed = 0;
-      lane.dots.forEach((dot, index) => {
+      lane.dots.forEach((dot, i) => {
         dot.className = "lf-pupil";
         dot.disabled = true;
         dot.setAttribute("aria-pressed", "false");
-        dot.setAttribute("aria-label", `Example pupil ${index + 1}: work not checked`);
+        dot.setAttribute("aria-label", `Student ${i + 1}: not checked yet`);
       });
     });
-    detail.innerHTML = `<p class="lf-feedback__hint">Select a pupil as their working is checked.</p>`;
+    detail.innerHTML = `<p class="lf-feedback__hint">Tap a red dot to see what that student wrote.</p>`;
     render();
     start();
   }
-  lanes.forEach((lane) => lane.dots.forEach((dot, index) => dot.addEventListener("click", () => pick(index))));
+  lanes.forEach((lane) => lane.dots.forEach((dot, i) => dot.addEventListener("click", () => pick(i))));
   host.querySelector<HTMLButtonElement>("#lf-sim-replay")!.addEventListener("click", replay);
   const observer = new IntersectionObserver((entries) => {
     visible = entries[0].isIntersecting;
@@ -131,48 +126,207 @@ function initTeacher(host: HTMLElement): (state: GardenState) => void {
   document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); else start(); });
   reduced.addEventListener("change", replay);
   render();
+}
 
-  return (state: GardenState): void => {
-    const plan = state.activePlan ?? state.plans.at(-1);
-    const line = host.querySelector<HTMLElement>("#lf-reader-attempt")!;
-    line.hidden = !plan;
-    if (plan) line.innerHTML = `<b>Your garden:</b> ${plan.length} m × ${plan.width} m covers ${plan.area} m². ${!plan.validFence ? `Revisit the fence constraint: ${plan.fence} m used.` : plan.correctPrediction ? "Your prediction matches." : `Your prediction of ${plan.prediction} plants needs a check.`}`;
-  };
+interface Step { cols: number; rows: number; right: number; wrong: number; hint: string }
+interface Profile { style: "rows" | "fence"; unit: string; ok: (s: Step) => string; prompt: (s: Step) => string; who: string; wrote: string; gapSkill: string; skills: { name: string; level: number }[]; steps: Step[] }
+
+const PROFILES: Record<string, Profile> = {
+  AREA_FORMULA_ERROR: {
+    style: "fence", unit: "m", prompt: () => "The fence goes all the way around the garden. How long is the fence?",
+    who: "A", wrote: "8 + 6 = 14", gapSkill: "Perimeter", ok: (s) => `(${s.cols} + ${s.rows}) × 2 = ${s.right}`,
+    skills: [{ name: "Add & subtract", level: 90 }, { name: "Multiply", level: 85 }, { name: "Perimeter", level: 30 }, { name: "Area", level: 45 }],
+    steps: [
+      { cols: 4, rows: 3, right: 14, wrong: 7, hint: "4 + 3 = 7 counts only two sides. The fence has four: (4 + 3) × 2 = 14." },
+      { cols: 6, rows: 4, right: 20, wrong: 10, hint: "6 + 4 = 10 is half the way round. Double it: (6 + 4) × 2 = 20." },
+      { cols: 8, rows: 6, right: 28, wrong: 14, hint: "8 + 6 = 14 is half the way round. Double it: (8 + 6) × 2 = 28." },
+    ],
+  },
+  PERIMETER_AREA_CONFUSION: {
+    style: "fence", unit: "m²", prompt: () => "Each tile is 1 m². Use the area equation: how much space is INSIDE the fence?",
+    who: "B", wrote: "(8 + 6) × 2 = 28", gapSkill: "Area", ok: (s) => `${s.cols} × ${s.rows} = ${s.right}`,
+    skills: [{ name: "Add & subtract", level: 90 }, { name: "Multiply", level: 85 }, { name: "Perimeter", level: 85 }, { name: "Area", level: 30 }],
+    steps: [
+      { cols: 4, rows: 3, right: 12, wrong: 14, hint: "14 m is the fence around it. Area = 4 × 3 = 12 squares inside." },
+      { cols: 5, rows: 2, right: 10, wrong: 14, hint: "14 m is the fence again. The space inside is 5 × 2 = 10." },
+      { cols: 8, rows: 6, right: 48, wrong: 28, hint: "28 m is the fence. The space inside is 8 × 6 = 48." },
+    ],
+  },
+  AREA_CALCULATION_ERROR: {
+    style: "rows", unit: "tiles", prompt: (s) => `There are ${s.rows} rows of ${s.cols} tiles. How many tiles in all?`,
+    who: "C", wrote: "8 × 6 = 42", gapSkill: "Multiply", ok: (s) => `${s.cols} × ${s.rows} = ${s.right}`,
+    skills: [{ name: "Add & subtract", level: 90 }, { name: "Multiply", level: 30 }, { name: "Perimeter", level: 85 }, { name: "Area", level: 45 }],
+    steps: [
+      { cols: 4, rows: 3, right: 12, wrong: 13, hint: "Close, but 4 × 3 = 12. Count the rows: 4 + 4 + 4 = 12." },
+      { cols: 6, rows: 5, right: 30, wrong: 35, hint: "5 rows of 6: 6 + 6 + 6 + 6 + 6 = 30." },
+      { cols: 8, rows: 6, right: 48, wrong: 42, hint: "6 rows of 8: 8 × 6 = 48, not 42." },
+    ],
+  },
+};
+function tiles(step: Step, style: "rows" | "fence"): string {
+  const size = Math.min(150 / step.cols, 90 / step.rows);
+  const w = size * step.cols;
+  const h = size * step.rows;
+  const x0 = (200 - w) / 2;
+  const y0 = 12;
+  let cells = "";
+  for (let r = 0; r < step.rows; r += 1) {
+    for (let c = 0; c < step.cols; c += 1) cells += `<rect class="lf-tile${style === "rows" && r % 2 === 0 ? " is-alt" : ""}" style="--i:${r * step.cols + c}" x="${x0 + c * size}" y="${y0 + r * size}" width="${size}" height="${size}"/>`;
+  }
+  let extra = `<rect class="lf-plot" x="${x0}" y="${y0}" width="${w}" height="${h}"/>`;
+  if (style === "rows") {
+    for (let r = 0; r < step.rows; r += 1) extra += `<text class="lf-rowlabel" x="${x0 - 6}" y="${y0 + (r + .5) * size + 3}" style="text-anchor:end">${r + 1}</text>`;
+    extra += `<text x="100" y="${y0 + h + 18}">${step.rows} equal rows · ${step.cols} tiles in each row</text>`;
+  } else {
+    extra += `<rect class="lf-fence" x="${x0 - 4}" y="${y0 - 4}" width="${w + 8}" height="${h + 8}"/>`;
+    for (const [px, py] of [[x0 - 4, y0 - 4], [x0 + w + 4, y0 - 4], [x0 - 4, y0 + h + 4], [x0 + w + 4, y0 + h + 4]]) extra += `<circle class="lf-post" cx="${px}" cy="${py}" r="3"/>`;
+    extra += `<text x="100" y="${y0 + h + 22}">fence: ${step.cols} m by ${step.rows} m</text>`;
+  }
+  return `<svg class="lf-question-diagram lf-diagram--${style}" viewBox="0 0 200 ${h + 44}" role="img" aria-label="A ${step.cols} m by ${step.rows} m garden made of 1 m² tiles">${cells}${extra}</svg>`;
 }
 
 function initChallenge(host: HTMLElement): void {
   host.innerHTML = `
-    <div class="lf-follow-up">
-      <div class="lf-follow-up__explanation"><span class="lf-small">Practice chosen from the mistake</span><h3 id="lf-practice-heading">From counting the fence<br>to covering the space.</h3><p class="lf-follow-up__wrong" id="lf-example-working">${m(perimeterError.wrote.join(" "))}</p><p id="lf-practice-reason">The next set is chosen from what the student got wrong. Here, they practise covering space with square tiles.</p></div>
-      <div class="lf-quick-question">
-        <p>Each tile is 1 m².<br><b>How much space does this garden cover?</b></p>
-        <svg class="lf-question-diagram" viewBox="0 0 180 140" role="img" aria-label="A four-metre by three-metre rectangle covered by twelve square-metre tiles"><rect x="42" y="24" width="96" height="72" rx="4"/><path d="M66 24v72M90 24v72M114 24v72M42 48h96M42 72h96"/><text x="90" y="119">4 m</text><text x="21" y="64">3 m</text></svg>
-        <div class="lf-quick-answers" role="group" aria-label="Choose the area"><button type="button" data-lf-answer="12" aria-pressed="false">12 m²</button><button type="button" data-lf-answer="14" aria-pressed="false">14 m²</button></div>
-        <p class="lf-answer-feedback" id="lf-answer-feedback" aria-live="polite">Count the tiles inside the fence.</p>
-      </div>
+    <div class="lf-adapt">
+      <article class="lf-profile" aria-live="polite">
+        <header><span class="lf-avatar" id="lf-avatar">A</span><div><b id="lf-who">Student A</b><small>Learning profile</small></div>
+          <div class="lf-switch" role="group" aria-label="Choose a student">${Object.entries(PROFILES).map(([code, p]) => `<button type="button" data-lf-student="${code}">${p.who}</button>`).join("")}</div></header>
+        <p class="lf-profile__last">Last answer: <span id="lf-wrote"></span> <i>✗</i></p>
+        <ul class="lf-skills" id="lf-skills"></ul>
+        <p class="lf-profile__note">Every answer updates this profile.</p>
+      </article>
+      <article class="lf-quick-question">
+        <header class="lf-quick-head"><span id="lf-made-for">Made for Student A</span><span class="lf-levels" id="lf-levels" aria-label="Difficulty"></span></header>
+        <p class="lf-quick-prompt" id="lf-prompt"><b></b></p>
+        <div id="lf-diagram"></div>
+        <div class="lf-quick-answers" id="lf-answers" role="group" aria-label="Choose the area"></div>
+        <p class="lf-answer-feedback" id="lf-answer-feedback" aria-live="polite"></p>
+        <button type="button" class="lf-next" id="lf-next" hidden></button>
+      </article>
     </div>`;
-  const answers = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-lf-answer]"));
-  answers.forEach((answer) => answer.addEventListener("click", () => {
-    const correct = answer.dataset.lfAnswer === "12";
-    answers.forEach((option) => { option.setAttribute("aria-pressed", String(option === answer)); });
-    host.querySelector<HTMLElement>("#lf-answer-feedback")!.textContent = correct ? "That matches: 4 × 3 = 12 m². Area is the space inside; the fence around it is 14 m long." : "14 comes from counting the fence: 2 × (4 + 3). Count the squares inside for area.";
-  }));
-  window.addEventListener("knowledge:error", (event) => {
-    const detail = (event as CustomEvent<{ questionId?: string; code?: string }>).detail;
-    const selected = QUESTIONS.find((candidate) => candidate.id === detail?.questionId);
-    const error = selected?.errors.find((candidate) => candidate.code === detail?.code);
-    if (!error) return;
-    host.querySelector<HTMLElement>("#lf-example-working")!.innerHTML = m(error.wrote.join(" "));
-    host.querySelector<HTMLElement>("#lf-practice-heading")!.innerHTML = error.code === "AREA_UNIT_ERROR" ? "From length units<br>to square units." : error.code === "AREA_FORMULA_ERROR" ? "From adding the sides<br>to building equal rows." : "From counting the fence<br>to covering the space.";
-    host.querySelector<HTMLElement>("#lf-practice-reason")!.textContent = error.code === "AREA_UNIT_ERROR" ? "The number is right, but area needs square units. The next practice makes one square metre visible." : error.code === "AREA_FORMULA_ERROR" ? "The next set is chosen from what the student got wrong. Here, equal rows show why area uses multiplication." : "The next set is chosen from what the student got wrong. Here, they practise covering space with square tiles.";
+
+  const $ = (id: string): HTMLElement => host.querySelector<HTMLElement>(`#${id}`)!;
+  let code = "AREA_FORMULA_ERROR";
+  let profile = PROFILES[code]!;
+  let levels: Record<string, number> = {};
+  let step = 0;
+  let solved = 0;
+  let answered = false;
+
+  function renderProfile(): void {
+    $("lf-avatar").textContent = profile.who;
+    $("lf-who").textContent = `Student ${profile.who}`;
+    $("lf-wrote").innerHTML = m(profile.wrote);
+    $("lf-made-for").textContent = `Picked for Student ${profile.who} · practising ${profile.gapSkill.toLowerCase()}`;
+    host.querySelectorAll<HTMLButtonElement>("[data-lf-student]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lfStudent === code)));
+    $("lf-skills").innerHTML = profile.skills.map((s) => {
+      const level = levels[s.name]!;
+      const gap = s.name === profile.gapSkill;
+      const tag = gap ? level >= 90 ? '<em class="is-fixed">Fixed ✓</em>' : "<em>Gap</em>" : "";
+      return `<li class="${gap ? level >= 90 ? "is-fixed" : "is-gap" : ""}"><span>${m(s.name)} ${tag}</span><i><b style="width:${level}%"></b></i></li>`;
+    }).join("");
+  }
+
+  function renderQuestion(): void {
+    const q = profile.steps[step]!;
+    answered = false;
+    $("lf-levels").innerHTML = profile.steps.map((_, i) => `<i class="${i <= step ? "is-on" : ""}"></i>`).join("") + `<span>Level ${step + 1}</span>`;
+    $("lf-prompt").firstElementChild!.textContent = profile.prompt(q);
+    $("lf-diagram").innerHTML = tiles(q, profile.style);
+    const options = (q.cols + q.rows) % 2 ? [q.right, q.wrong] : [q.wrong, q.right];
+    $("lf-answers").innerHTML = options.map((n) => `<button type="button" data-lf-answer="${n}">${n} ${profile.unit}</button>`).join("");
+    $("lf-answer-feedback").textContent = "";
+    $("lf-next").hidden = true;
+  }
+
+  function load(next: string): void {
+    if (!PROFILES[next]) return;
+    code = next;
+    profile = PROFILES[code]!;
+    levels = Object.fromEntries(profile.skills.map((s) => [s.name, s.level]));
+    step = 0;
+    solved = 0;
+    renderProfile();
+    renderQuestion();
+  }
+
+  function answer(value: number): void {
+    if (answered) return;
+    answered = true;
+    const q = profile.steps[step]!;
+    const correct = value === q.right;
+    host.querySelectorAll<HTMLButtonElement>("[data-lf-answer]").forEach((b) => {
+      b.disabled = true;
+      if (Number(b.dataset.lfAnswer) === value) b.classList.add(correct ? "is-correct" : "is-wrong");
+    });
+    const gap = profile.gapSkill;
+    levels[gap] = Math.max(15, Math.min(95, levels[gap]! + (correct ? 22 : -8)));
+    if (correct) solved += 1;
+    renderProfile();
+    const next = $("lf-next");
+    next.hidden = false;
+    if (correct) {
+      $("lf-diagram").querySelector("svg")?.classList.add("is-solved");
+      $("lf-answer-feedback").textContent = `✓ Right: ${profile.ok(q)}.`;
+      if (step === profile.steps.length - 1 || levels[gap]! >= 90) {
+        next.dataset.go = "done";
+        next.textContent = "See the result →";
+      } else {
+        next.dataset.go = "up";
+        next.textContent = "Harder one →";
+      }
+    } else {
+      $("lf-answer-feedback").textContent = `✗ ${q.hint}`;
+      next.dataset.go = "down";
+      next.textContent = step > 0 ? "Easier one →" : "Try again →";
+    }
+  }
+
+  function advance(go: string): void {
+    if (go === "done") {
+      levels[profile.gapSkill] = 95;
+      renderProfile();
+      $("lf-diagram").innerHTML = `<p class="lf-done"><b>✓</b>Gap closed in ${solved} questions.<br>Student ${profile.who} goes back to the Area topic.</p>`;
+      $("lf-answers").innerHTML = "";
+      $("lf-answer-feedback").textContent = "";
+      $("lf-levels").innerHTML = "";
+      const next = $("lf-next");
+      next.dataset.go = "restart";
+      next.textContent = "Start again";
+      return;
+    }
+    if (go === "restart") { load(code); return; }
+    if (go === "up") step = Math.min(profile.steps.length - 1, step + 1);
+    if (go === "down") step = Math.max(0, step - 1);
+    renderQuestion();
+  }
+
+  host.addEventListener("click", (event) => {
+    const target = event.target as Element;
+    const pick = target.closest<HTMLButtonElement>("[data-lf-answer]");
+    if (pick) { answer(Number(pick.dataset.lfAnswer)); return; }
+    const student = target.closest<HTMLButtonElement>("[data-lf-student]");
+    if (student) { load(student.dataset.lfStudent!); return; }
+    const next = target.closest<HTMLButtonElement>("#lf-next");
+    if (next) advance(next.dataset.go ?? "up");
   });
+  window.addEventListener("knowledge:error", (event) => {
+    const next = (event as CustomEvent<{ code?: string }>).detail?.code;
+    if (next && next !== code) load(next);
+  });
+  load(code);
 }
 
 function initBuildStory(host: HTMLElement): void {
   host.innerHTML = `<div class="lf-build-story">
-    <article><span>01</span><div><h3>I mapped how the skills connect.</h3><p>I structured the EDB maths curriculum into concepts, prerequisites and errors, so feedback can trace what needs revisiting.</p></div></article>
-    <article><span>02</span><div><h3>I built analysis of handwritten working.</h3><p>The engine reads the steps a student wrote, so feedback can address the reasoning behind an answer.</p></div></article>
-    <article><span>03</span><div><h3>I built the teacher’s feedback view.</h3><p>A principal wanted to see students’ working. I turned that request into progress and error analysis teachers could use during a lesson.</p></div></article>
+    <article><span>01</span><h3>I mapped how the maths skills connect.</h3></article>
+    <article><span>02</span><h3>I built the reading of handwritten working.</h3></article>
+    <article><span>03</span><h3>I built the teacher's live view.</h3></article>
+  </div>
+  <div class="lf-funnel" aria-label="Schools">
+    <div style="--w:100%"><b>200+</b><span>schools I pitched to</span></div>
+    <div style="--w:75%"><b>150</b><span>tried it with us</span></div>
+    <div style="--w:40%"><b>30+</b><span>now pay for it</span></div>
   </div>`;
 }
 
@@ -180,7 +334,9 @@ export function initLearningFlow(): void {
   const teacher = document.getElementById("teacher-experience");
   const challenge = document.getElementById("next-challenge");
   const buildStory = document.getElementById("build-story");
-  if (teacher) subscribeGarden(initTeacher(teacher));
+  if (teacher) initTeacher(teacher);
   if (challenge) initChallenge(challenge);
   if (buildStory) initBuildStory(buildStory);
 }
+
+
