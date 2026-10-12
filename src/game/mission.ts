@@ -23,7 +23,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
           <p class="g-board-foot">Each square is 1 m². Write your working here.</p></div>
         </details>
         <section class="g-done" id="g-done" hidden>
-          <div class="g-find"><span>Your first Find</span><b>Same fence,<br>different space.</b><small>Perimeter is the edge. Area is the space inside.</small></div>
+          <div class="g-find"><span>Your first Find</span><b>Equal sides,<br>most plants.</b><small>For rectangles with the same perimeter, a square has the greatest area.</small></div>
           <div><h3>You found it!</h3><p id="g-done-text"></p><a class="g-btn" href="#error">See how MathsAI spots mistakes ↓</a><button type="button" class="g-link" id="g-restart">Play again</button></div>
         </section>
       </div>
@@ -248,23 +248,39 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function next(plan: GardenPlan): void {
     if (destroyed) return;
     const best = Math.max(...plans.slice(0, -1).map((p) => p.area), 0);
-    if (plans.length === 1) {
-      if (plan.area === 36) { complete(); return; }
-      say(`${plan.area} plants! Now, can you use the <b>same 24 m</b> to grow <b>more than ${plan.area}</b>?`, [{ label: "Let's try!", then: () => {
+    if (plan.area === 36) { explainMaximum(); return; }
+    const message = plan.area > best
+      ? `${plan.area} plants! Can you grow even more with the <b>same 24 m</b>? Try making the two sides closer in length.`
+      : `That's ${plan.area} plants. Your best garden grew ${best}. Try making the two sides closer in length, keeping the <b>same 24 m</b>.`;
+    say(message, [{ label: "Try another shape", then: () => {
         setStep("more");
-        $("g-plan").textContent = "Plan B";
+        $("g-plan").textContent = `Plan ${String.fromCharCode(65 + plans.length)}`;
         $<HTMLInputElement>("g-seeds").value = "";
         $("g-verdict").hidden = true;
         $("g-slot").hidden = true;
         unlock();
         say("Change the shape. Keep all 24 m of fence.");
       } }]);
-      return;
-    }
-    if (plan.area > best) { complete(); return; }
-    say(`That's ${plan.area}, but your first garden grew ${best}. Try a different shape!`);
-    $<HTMLInputElement>("g-seeds").value = "";
-    unlock();
+  }
+
+  function explainMaximum(): void {
+    updateGardenState({ phase: "compare", plans: [...plans] });
+    $("g-verdict").hidden = true;
+    $("g-slot").hidden = true;
+    $("g-notebook").hidden = true;
+    say("<b>6 × 6 = 36 plants!</b> All these rectangles use 24 m of fence: <b>3 × 9 = 27</b>, <b>4 × 8 = 32</b>, <b>5 × 7 = 35</b>, <b>6 × 6 = 36</b>. What happens as the sides get closer?", [
+      { label: "The area gets bigger", then: transfer },
+      { label: "The area stays the same", then: () => say("The fence stays the same, but the plants increase: 27, 32, 35, 36. Equal sides give the most space inside.", [{ label: "Try a new fence", then: transfer }]) },
+    ]);
+  }
+
+  function transfer(): void {
+    updateGardenState({ phase: "transfer" });
+    say("The fence is fixed, so <b>length + width = 12</b>. Moving 1 m away from equal sides gives <b>5 × 7 = 35</b>; moving 2 m away gives <b>4 × 8 = 32</b>. Now imagine <b>20 m of fence</b>. Which rectangle holds the most plants?", [
+      { label: "4 m × 6 m", then: () => say("That uses 20 m of fence and holds 24 plants. Can you make the sides equal and fit more?", [{ label: "Try again", then: transfer }]) },
+      { label: "5 m × 5 m", then: () => { updateGardenState({ transferPassed: true }); complete(); } },
+      { label: "6 m × 6 m", then: () => say("That holds 36 plants, but needs 24 m of fence. With 20 m, the two side lengths must add to 10.", [{ label: "Try again", then: transfer }]) },
+    ]);
   }
 
   function complete(): void {
@@ -276,10 +292,10 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     $("g-slot").hidden = true;
     $("g-verdict").hidden = true;
     scene?.setStage("complete");
-    const lines = plans.map((p, i) => `Plan ${String.fromCharCode(65 + i)}: ${p.length} × ${p.width} = <b>${p.area} plants</b>`).join(" &nbsp;·&nbsp; ");
-    $("g-done-text").innerHTML = `${lines}<br>The same 24 m of fence can hold a different number of plants.`;
+    const lines = plans.slice(-2).map((p, i) => `Plan ${String.fromCharCode(65 + plans.length - Math.min(2, plans.length) + i)}: ${p.length} × ${p.width} = <b>${p.area} plants</b>`).join(" &nbsp;·&nbsp; ");
+    $("g-done-text").innerHTML = `${lines}<br><b>With 24 m of fence, 6 × 6 gives the greatest area: 36 m².</b><br>With 20 m, 5 × 5 gives 25 m². When two positive numbers have a fixed sum, their product is greatest when they are equal.`;
     $("g-done").hidden = false;
-    say("Same fence, more plants. You found it!");
+    say("Yes! 5 × 5 = 25 plants with 20 m of fence. Equal sides give the greatest area for a rectangle with a fixed perimeter. You used the idea with a new fence!");
     requestAnimationFrame(() => ScrollTrigger.refresh());
   }
 
@@ -289,6 +305,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
 
   function restart(): void {
     plans.length = 0;
+    updateGardenState({ phase: "build", plans: [], activePlan: null, transferPassed: false });
     renderSaved();
     length = 8;
     width = 3;

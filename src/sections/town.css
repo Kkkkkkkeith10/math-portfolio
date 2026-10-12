@@ -20,6 +20,7 @@
 .town-loop b { font: 600 clamp(1.05rem, 1.8vw, 1.3rem) var(--serif); white-space: nowrap; }
 
 #world .lead { max-width: 46rem; }
+.replica-note { margin: .9rem 0 0; font-size: .82rem; font-style: italic; color: var(--ink-soft); }
 @media (max-width: 900px) {
   .town-scene { height: 250px; }
 }
