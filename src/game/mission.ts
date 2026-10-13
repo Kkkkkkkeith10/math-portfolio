@@ -69,7 +69,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   const canDraw = (): boolean => !!scene && scene.canDraw();
 
   /* ---------- Mei's speech bubble ---------- */
-  /* The plant counter lives in the top-right. Keep Mei's bubble out of that corner. */
+  /* The plant counter sits at the bottom centre. Keep Mei's bubble above it. */
   function clearOfCounter(left: number, top: number, bw: number, bh: number): { left: number; top: number } {
     const counter = $("g-counter");
     if (counter.hidden) return { left, top };
@@ -79,9 +79,11 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const box = { x: cr.left - wr.left, y: cr.top - wr.top, r: cr.right - wr.left, b: cr.bottom - wr.top };
     const hits = left < box.r + pad && left + bw > box.x - pad && top < box.b + pad && top + bh > box.y - pad;
     if (!hits) return { left, top };
+    const above = box.y - pad - bh;
+    if (above >= 8) return { left, top: Math.min(top, above) };
     const shifted = box.x - pad - bw;
     if (shifted >= 8) return { left: shifted, top };
-    return { left, top: Math.max(top, box.b + pad) };
+    return { left, top };
   }
   function placeBubble(): void {
     const bubble = $("g-bubble");
@@ -311,6 +313,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       $("g-bubble").hidden = true;
       const { length: l, width: w } = farms[index]!;
       const counter = $("g-counter");
+      window.clearTimeout(counterTimer);
       counter.hidden = false;
       const paint = (planted: number): void => {
         counter.classList.toggle("is-over", planted > l * w);
@@ -336,6 +339,13 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     if (window.matchMedia("(pointer: fine)").matches) form.querySelector("input")!.focus({ preventScroll: true });
   }
   let verdictTimer = 0;
+  let counterTimer = 0;
+  function hideCounterSoon(): void {
+    window.clearTimeout(counterTimer);
+    counterTimer = window.setTimeout(() => {
+      if (!destroyed) $("g-counter").hidden = true;
+    }, 10000);
+  }
   function verdict(ok: boolean, text: string): void {
     $("g-mark").textContent = ok ? "✓" : "✗";
     $("g-bubble").hidden = true;
@@ -350,6 +360,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   }
   function checkCount(index: number, answer: number): void {
     if (destroyed) return;
+    hideCounterSoon();
     const { length: l, width: w } = farms[index]!;
     const area = l * w;
     if (answer !== area) {
@@ -368,7 +379,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function afterFarm(index: number, plan: GardenPlan): void {
     if (destroyed) return;
     $("g-verdict").hidden = true;
-    $("g-counter").hidden = true;
     if (index < 2) say(`An area of <b>${plan.area} m²</b>! On to the next farm.`, [{ label: "Next farm", then: () => areaFarm(index + 1) }]);
     else say(`An area of <b>${plan.area} m²</b>! Let's compare all three.`, [{ label: "Compare", then: openCompare }]);
   }
@@ -565,6 +575,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     drawInk();
     $("g-pad").hidden = true;
     $("g-compare").hidden = true;
+    window.clearTimeout(counterTimer);
     $("g-counter").hidden = true;
     $("g-verdict").hidden = true;
     updateGardenState({ phase: "build", plans: [], activePlan: null, transferPassed: false });
@@ -670,6 +681,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   return {
     destroy() {
       destroyed = true;
+      window.clearTimeout(counterTimer);
       controller.abort();
       seenObserver.disconnect();
       resize.disconnect();
