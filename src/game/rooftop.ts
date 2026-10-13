@@ -1,23 +1,39 @@
 import * as THREE from "three";
 
 export interface RooftopHandle {
+  /** The small 3 m x 2 m demo plot used only while Mei is teaching perimeter and area. */
   updateGarden(length: number, width: number, harvest: boolean): void;
-  setStage(stage: "meet" | "build" | "compare" | "transfer" | "complete"): void;
-  setInteractive(enabled: boolean, onResize?: (length: number, width: number) => void): void;
-  /** Show the length and width labels without the drag handle. */
+  setStage(stage: "meet" | "build" | "compare" | "complete"): void;
+  /** Show the length and width labels on the demo plot, without a drag handle. */
   showLabels(enabled: boolean): void;
-  /** The plank pile beside the workbench shows one plank per metre of fence still unused. */
+  /** The fence pile beside the workbench shows one plank per metre of fence still unused. */
   setFenceLeft(metres: number): void;
-  /** Mei walks from the hut to the garden. */
+  /** Mei walks from the hut to the demo plot. */
   walkIn(onDone?: () => void): void;
+  /** Mei walks to stand beside one of the three farm plots. */
+  walkToFarm(index: number, onDone?: () => void): void;
   /** A small hop, used when Mei starts a new line. */
   hop(): void;
-  /** Plant one seed per square, one at a time, until the seeds or the squares run out. */
+  /** Plant one seed per square on the demo plot, one at a time. */
   plantSeeds(seeds: number, onPlant: (planted: number) => void, onDone: (planted: number) => void): void;
+  /** Draw a farm's fence as two lines: drag out the length, then the width. Reports live values and the final shape. */
+  beginDraw(index: number, onChange: (length: number, width: number) => void, onComplete: (length: number, width: number) => void): void;
+  /** True while a farm can be drawn with a drag gesture (false on the no-WebGL fallback). */
+  canDraw(): boolean;
+  /** Fill every square of a finished farm with a plant. */
+  growFarm(index: number, onDone: () => void): void;
+  /** Grey out a farm Mei isn't currently visiting. */
+  dimFarm(index: number, dim: boolean): void;
+  /** Hide and clear all three farm plots, ready to draw again. */
+  resetFarms(): void;
   /** Called with Mei's head position in pixels, relative to the scene, whenever it changes. */
   onMeiMove(listener: (x: number, y: number, footY: number) => void): void;
   destroy(): void;
 }
+
+const FARM_FENCE = 12;
+const unit = 0.65;
+const roofY = 1.38;
 
 /** A small, locally rendered diorama. All assets are procedural geometry. */
 export function mountRooftop(host: HTMLElement): RooftopHandle {
@@ -43,12 +59,17 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     return {
       updateGarden: (length, width) => { squares = length * width; },
       setStage: () => undefined,
-      setInteractive: () => undefined,
       showLabels: () => undefined,
       setFenceLeft: () => undefined,
       walkIn: (onDone) => onDone?.(),
+      walkToFarm: (_index, onDone) => onDone?.(),
       hop: () => undefined,
       plantSeeds: (seeds, onPlant, onDone) => { const n = Math.min(seeds, squares); onPlant(n); onDone(n); },
+      beginDraw: (_index, _onChange, onComplete) => onComplete(1, 1),
+      canDraw: () => false,
+      growFarm: (_index, onDone) => onDone(),
+      dimFarm: () => undefined,
+      resetFarms: () => undefined,
       onMeiMove: () => undefined,
       destroy: () => { fallback.remove(); host.classList.remove("rooftop-unavailable"); },
     };
@@ -129,7 +150,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     item.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
     return item;
   };
-  const roofY = 1.38;
   const cream = "#f4e8cf";
   const teal = "#5b9f93";
   const darkTeal = "#356965";
@@ -298,14 +318,14 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const sack = rock(model, "#d7bb84", -6.42, roofY + 0.28, -0.51, 0.35);
   sack.scale.set(0.37, 0.45, 0.29);
 
-  // Mei's fence supply: 24 one-metre planks, criss-crossed in layers of three.
+  // Mei's fence supply: one-metre planks, criss-crossed in layers of three.
   const pile = new THREE.Group();
   pile.position.set(-6.45, roofY, 0.55);
   pile.rotation.y = 0.12;
   model.add(pile);
   for (const z of [-0.36, 0.36]) box(pile, "#8b6a45", 0, 0.04, z, 1.1, 0.08, 0.14);
   const planks: THREE.Group[] = [];
-  for (let i = 0; i < 24; i += 1) {
+  for (let i = 0; i < FARM_FENCE; i += 1) {
     const layer = Math.floor(i / 3);
     const offset = (i % 3 - 1) * 0.27;
     const along = layer % 2 === 0;
@@ -316,7 +336,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     box(group, (i + layer) % 3 === 0 ? "#d7a666" : (i + layer) % 3 === 1 ? "#c8924a" : "#deb377", 0, 0, 0, along ? 1.05 : 0.23, 0.09, along ? 0.23 : 1.05);
     planks.push(group);
   }
-  let fenceLeft = 24;
+  let fenceLeft = FARM_FENCE;
 
   // Cloth bunting; gently sagging geometry, without a perpetual animation loop.
   const stringPoints: THREE.Vector3[] = [];
@@ -409,39 +429,16 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     model.add(plaque);
   }
 
+  /* ---------- The demo plot: Mei's fixed 3 m x 2 m teaching example ---------- */
   const garden = new THREE.Group();
   garden.position.set(-1.6, roofY + 0.015, 0.2);
   model.add(garden);
-  const unit = 0.65;
-  let currentLength = 8;
-  let currentWidth = 4;
-  let currentStage: "meet" | "build" | "compare" | "transfer" | "complete" = "meet";
-  let interactive = false;
+  let demoLength = 3;
+  let demoWidth = 2;
+  let demoCropGroup: THREE.Group | null = null;
   let labelsVisible = false;
-  let resizeGarden: ((length: number, width: number) => void) | undefined;
-  let cropGroup: THREE.Group | null = null;
-  let destroyed = false;
-  let isVisible = true;
-  let renderId = 0;
-  let plantToken = 0;
-  let meiListener: ((x: number, y: number, footY: number) => void) | null = null;
-  /** Running animations. Each returns true when it has finished. */
-  const anims = new Set<(now: number) => boolean>();
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-  // These controls are actual raycastable 3D assets. The DOM markers simply make
-  // their screen positions and dimension values readable at every pixel density.
-  type DragAxis = "corner";
-  const controls = new THREE.Group();
-  controls.position.copy(garden.position);
-  controls.visible = false;
-  model.add(controls);
-  const handles = new Map<DragAxis, THREE.Mesh>();
-  const hitMeshes: THREE.Mesh[] = [];
-  const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
-  materials.add(hitMaterial);
-  const handleGeometry = geometry("garden-handle", () => new THREE.SphereGeometry(1, 10, 8));
-  const hitGeometry = geometry("garden-hit-target", () => new THREE.SphereGeometry(0.42, 8, 6));
+  const demoLengthLabel = document.createElement("span");
+  const demoWidthLabel = document.createElement("span");
   const previousPosition = host.style.position;
   if (window.getComputedStyle(host).position === "static") host.style.position = "relative";
   const overlay = document.createElement("div");
@@ -449,42 +446,11 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   overlay.style.cssText = "position:absolute;inset:0;pointer-events:none;overflow:hidden;";
   overlay.setAttribute("aria-hidden", "true");
   host.append(overlay);
-  const markers = new Map<DragAxis, HTMLSpanElement>();
-  const knob = mesh(controls, handleGeometry, "#e6b654", 0, 0.58, 0);
-  knob.scale.setScalar(0.24);
-  handles.set("corner", knob);
-  const hit = new THREE.Mesh(hitGeometry, hitMaterial);
-  hit.userData.axis = "corner";
-  controls.add(hit);
-  hitMeshes.push(hit);
-  const marker = document.createElement("span");
-  marker.className = "rooftop-drag-handle";
-  marker.dataset.axis = "corner";
-  marker.style.cssText = "position:absolute;display:grid;place-items:center;width:36px;height:36px;transform:translate(-50%,-50%);border:2px solid #fff9e8;border-radius:50%;background:#e6b654;color:#fffdf4;font:700 19px/1 sans-serif;box-shadow:0 3px 12px #24483830;";
-  marker.textContent = "⤢";
-  overlay.append(marker);
-  markers.set("corner", marker);
-  const lengthLabel = document.createElement("span");
-  const widthLabel = document.createElement("span");
-  for (const [axis, label] of [["length", lengthLabel], ["width", widthLabel]] as const) {
+  for (const [axis, label] of [["length", demoLengthLabel], ["width", demoWidthLabel]] as const) {
     label.className = "rooftop-dimension";
     label.dataset.axis = axis;
     label.style.cssText = "position:absolute;padding:7px 12px;border-radius:9px;transform:translate(-50%,-50%);background:#fff9eeeF;box-shadow:0 2px 12px #25453918;color:#185e54;font:700 15px/1.15 sans-serif;white-space:nowrap;";
     overlay.append(label);
-  }
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
-  const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(garden.position.y + 0.58));
-  const planePoint = new THREE.Vector3();
-  let drag: { axis: DragAxis; pointerId: number; start: THREE.Vector3; length: number; width: number } | null = null;
-
-  function updateControlPositions(): void {
-    const lx = currentLength * unit;
-    const wz = currentWidth * unit;
-    handles.get("corner")!.position.set(lx / 2, 0.58, wz / 2);
-    for (const hit of hitMeshes) hit.position.copy(handles.get(hit.userData.axis as DragAxis)!.position);
-    lengthLabel.textContent = `${currentLength} m`;
-    widthLabel.textContent = `${currentWidth} m`;
   }
   const projectedPoint = new THREE.Vector3();
   function placeOverlay(item: HTMLElement, worldPoint: THREE.Vector3, offsetY = 0): void {
@@ -494,21 +460,173 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     item.style.left = `${x}px`;
     item.style.top = `${y}px`;
   }
-  function updateOverlay(): void {
-    model.updateMatrixWorld(true);
-    camera.updateMatrixWorld(true);
-    const show = interactive || labelsVisible;
-    overlay.style.display = show ? "block" : "none";
-    if (!show) return;
-    for (const [axis, knob] of handles) {
-      const marker = markers.get(axis)!;
-      marker.style.display = interactive ? "grid" : "none";
-      if (interactive) placeOverlay(marker, knob.getWorldPosition(new THREE.Vector3()));
+  function renderDemo(length: number, width: number, harvest: boolean): void {
+    garden.clear();
+    demoLength = length;
+    demoWidth = width;
+    const lx = length * unit;
+    const wz = width * unit;
+    box(garden, "#bca37a", 0, 0.065, 0, lx + 0.22, 0.13, wz + 0.22);
+    box(garden, "#826344", 0, 0.145, 0, lx, 0.1, wz);
+    for (let column = 0; column <= length; column += 1) box(garden, "#b0916a", -lx / 2 + column * unit, 0.202, 0, 0.032, 0.014, wz);
+    for (let row = 0; row <= width; row += 1) box(garden, "#b0916a", 0, 0.202, -wz / 2 + row * unit, lx, 0.014, 0.032);
+    const fence = "#d9bb83";
+    const post = (x: number, z: number): void => {
+      box(garden, fence, x, 0.37, z, 0.06, 0.46, 0.06);
+      cylinder(garden, "#e7cc9c", x, 0.62, z, 0, 0.052, 0.08, 4);
+    };
+    for (let i = 0; i <= length; i += 1) { const x = -lx / 2 + i * unit; post(x, -wz / 2); post(x, wz / 2); }
+    for (let i = 1; i < width; i += 1) { const z = -wz / 2 + i * unit; post(-lx / 2, z); post(lx / 2, z); }
+    for (const y of [0.34, 0.52]) {
+      for (const z of [-wz / 2, wz / 2]) box(garden, fence, 0, y, z, lx + 0.05, 0.038, 0.035);
+      for (const x of [-lx / 2, lx / 2]) box(garden, fence, x, y, 0, 0.035, 0.038, wz + 0.05);
     }
-    const lengthMidpoint = new THREE.Vector3(0, 0.3, -currentWidth * unit / 2 - 1.25);
-    const widthMidpoint = new THREE.Vector3(-currentLength * unit / 2 - 1.35, 0.3, 0);
-    placeOverlay(lengthLabel, garden.localToWorld(lengthMidpoint), -18);
-    placeOverlay(widthLabel, garden.localToWorld(widthMidpoint), 0);
+    demoCropGroup = new THREE.Group();
+    demoCropGroup.position.y = 0.22;
+    garden.add(demoCropGroup);
+    if (harvest) {
+      for (let column = 0; column < length; column += 1) {
+        for (let row = 0; row < width; row += 1) plant(demoCropGroup, -lx / 2 + (column + 0.5) * unit, -wz / 2 + (row + 0.5) * unit, column * 13 + row, 1.25);
+      }
+    } else {
+      for (let column = 0; column < length; column += 1) {
+        for (let row = 0; row < width; row += 1) cylinder(demoCropGroup, "#ae8c5f", -lx / 2 + (column + 0.5) * unit, 0.004, -wz / 2 + (row + 0.5) * unit, 0.026, 0.026, 0.008, 5);
+      }
+    }
+    render();
+  }
+
+  /* ---------- The three farm plots, drawn by hand ---------- */
+  const FARM_COUNT = 3;
+  const farmSlots = [new THREE.Vector3(-4.3, roofY + 0.015, 0.2), new THREE.Vector3(0, roofY + 0.015, 0.2), new THREE.Vector3(4.3, roofY + 0.015, 0.2)];
+  const farmGroups = farmSlots.map((pos) => { const g = new THREE.Group(); g.position.copy(pos); g.visible = false; model.add(g); return g; });
+  const farmCrop: (THREE.Group | null)[] = [null, null, null];
+  const farmDims: { length: number; width: number }[] = [{ length: 0, width: 0 }, { length: 0, width: 0 }, { length: 0, width: 0 }];
+  const farmDim: THREE.Mesh[] = farmGroups.map((group) => {
+    const overlayMesh = box(model, "#1c241c", 0, 0.5, 0, 0.1, 1, 0.1);
+    overlayMesh.material = new THREE.MeshBasicMaterial({ color: "#1c241c", transparent: true, opacity: 0.45, depthWrite: false });
+    materials.add(overlayMesh.material);
+    overlayMesh.castShadow = false;
+    overlayMesh.receiveShadow = false;
+    overlayMesh.visible = false;
+    overlayMesh.position.copy(group.position);
+    return overlayMesh;
+  });
+
+  function buildPlotInto(parent: THREE.Group, length: number, width: number, harvest: boolean): THREE.Group {
+    parent.clear();
+    const inner = new THREE.Group();
+    inner.position.set(length * unit / 2, 0, width * unit / 2);
+    parent.add(inner);
+    const lx = length * unit;
+    const wz = width * unit;
+    box(inner, "#bca37a", 0, 0.065, 0, lx + 0.22, 0.13, wz + 0.22);
+    box(inner, "#826344", 0, 0.145, 0, lx, 0.1, wz);
+    for (let column = 0; column <= length; column += 1) box(inner, "#b0916a", -lx / 2 + column * unit, 0.202, 0, 0.032, 0.014, wz);
+    for (let row = 0; row <= width; row += 1) box(inner, "#b0916a", 0, 0.202, -wz / 2 + row * unit, lx, 0.014, 0.032);
+    const fence = "#d9bb83";
+    const post = (x: number, z: number): void => {
+      box(inner, fence, x, 0.37, z, 0.06, 0.46, 0.06);
+      cylinder(inner, "#e7cc9c", x, 0.62, z, 0, 0.052, 0.08, 4);
+    };
+    for (let i = 0; i <= length; i += 1) { const x = -lx / 2 + i * unit; post(x, -wz / 2); post(x, wz / 2); }
+    for (let i = 1; i < width; i += 1) { const z = -wz / 2 + i * unit; post(-lx / 2, z); post(lx / 2, z); }
+    for (const y of [0.34, 0.52]) {
+      for (const z of [-wz / 2, wz / 2]) box(inner, fence, 0, y, z, lx + 0.05, 0.038, 0.035);
+      for (const x of [-lx / 2, lx / 2]) box(inner, fence, x, y, 0, 0.035, 0.038, wz + 0.05);
+    }
+    const crop = new THREE.Group();
+    crop.position.y = 0.22;
+    inner.add(crop);
+    for (let column = 0; column < length; column += 1) {
+      for (let row = 0; row < width; row += 1) {
+        if (harvest) plant(crop, -lx / 2 + (column + 0.5) * unit, -wz / 2 + (row + 0.5) * unit, column * 13 + row, 1.25);
+        else cylinder(crop, "#ae8c5f", -lx / 2 + (column + 0.5) * unit, 0.004, -wz / 2 + (row + 0.5) * unit, 0.026, 0.026, 0.008, 5);
+      }
+    }
+    return crop;
+  }
+
+  function renderFarmEdge(index: number, drawnLength: number): void {
+    const group = farmGroups[index]!;
+    group.clear();
+    group.visible = true;
+    const steps = Math.max(1, Math.round(drawnLength));
+    const lx = steps * unit;
+    const post = (x: number): void => { box(group, "#d9bb83", x, 0.37, 0, 0.06, 0.46, 0.06); cylinder(group, "#e7cc9c", x, 0.62, 0, 0, 0.052, 0.08, 4); };
+    for (let i = 0; i <= steps; i += 1) post(i * unit);
+    for (const y of [0.34, 0.52]) box(group, "#d9bb83", lx / 2, y, 0, lx + 0.05, 0.038, 0.035);
+    render();
+  }
+
+  /* ---------- The draw handle: one reusable handle, repositioned per farm and phase ---------- */
+  const controls = new THREE.Group();
+  controls.visible = false;
+  model.add(controls);
+  const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
+  materials.add(hitMaterial);
+  const handleGeometry = geometry("garden-handle", () => new THREE.SphereGeometry(1, 10, 8));
+  const hitGeometry = geometry("garden-hit-target", () => new THREE.SphereGeometry(0.46, 8, 6));
+  const knob = mesh(controls, handleGeometry, "#e6b654", 0, 0.58, 0);
+  knob.scale.setScalar(0.24);
+  const hit = new THREE.Mesh(hitGeometry, hitMaterial);
+  controls.add(hit);
+  const marker = document.createElement("span");
+  marker.className = "rooftop-drag-handle";
+  marker.style.cssText = "position:absolute;display:grid;place-items:center;width:36px;height:36px;transform:translate(-50%,-50%);border:2px solid #fff9e8;border-radius:50%;background:#e6b654;color:#fffdf4;font:700 19px/1 sans-serif;box-shadow:0 3px 12px #24483830;";
+  marker.textContent = "⤢";
+  overlay.append(marker);
+  const drawLengthLabel = document.createElement("span");
+  const drawWidthLabel = document.createElement("span");
+  for (const [axis, label] of [["draw-length", drawLengthLabel], ["draw-width", drawWidthLabel]] as const) {
+    label.className = "rooftop-dimension";
+    label.dataset.axis = axis;
+    label.style.cssText = "position:absolute;padding:7px 12px;border-radius:9px;transform:translate(-50%,-50%);background:#fff9eeeF;box-shadow:0 2px 12px #25453918;color:#185e54;font:700 15px/1.15 sans-serif;white-space:nowrap;";
+    overlay.append(label);
+  }
+
+  interface DrawState {
+    farm: number;
+    phase: "length" | "width";
+    length: number;
+    width: number;
+    onChange: (length: number, width: number) => void;
+    onComplete: (length: number, width: number) => void;
+  }
+  let draw: DrawState | null = null;
+  let drag: { pointerId: number; start: THREE.Vector3; length: number; width: number } | null = null;
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(roofY + 0.015 + 0.58));
+  const planePoint = new THREE.Vector3();
+
+  function updateHandlePosition(): void {
+    if (!draw) return;
+    const group = farmGroups[draw.farm]!;
+    const local = draw.phase === "length" ? new THREE.Vector3(draw.length * unit, 0.58, 0) : new THREE.Vector3(draw.length * unit, 0.58, draw.width * unit);
+    controls.position.copy(group.position);
+    knob.position.copy(local);
+    hit.position.copy(local);
+    placeOverlay(marker, group.localToWorld(local.clone()));
+    const lengthMid = group.localToWorld(new THREE.Vector3(draw.length * unit / 2, 0.3, -0.35));
+    placeOverlay(drawLengthLabel, lengthMid, -6);
+    drawLengthLabel.textContent = `${draw.length} m`;
+    drawLengthLabel.style.display = "block";
+    if (draw.phase === "width") {
+      const widthMid = group.localToWorld(new THREE.Vector3(draw.length * unit + 0.4, 0.3, draw.width * unit / 2));
+      placeOverlay(drawWidthLabel, widthMid, -6);
+      drawWidthLabel.textContent = `${draw.width} m`;
+      drawWidthLabel.style.display = "block";
+    } else {
+      drawWidthLabel.style.display = "none";
+    }
+  }
+  function renderDrawPreview(): void {
+    if (!draw) return;
+    if (draw.phase === "length") renderFarmEdge(draw.farm, draw.length);
+    else { buildPlotInto(farmGroups[draw.farm]!, Math.max(1, Math.round(draw.length)), Math.max(1, Math.round(draw.width)), false); farmGroups[draw.farm]!.visible = true; }
+    updateHandlePosition();
+    render();
   }
 
   function pointRay(event: PointerEvent): void {
@@ -516,70 +634,99 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     pointer.set((event.clientX - bounds.left) / bounds.width * 2 - 1, -(event.clientY - bounds.top) / bounds.height * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
   }
-  function pickHandle(event: PointerEvent): THREE.Intersection<THREE.Object3D> | undefined {
-    const hits = raycaster.intersectObjects(hitMeshes, false);
-    const bounds = canvas.getBoundingClientRect();
-    let nearest: THREE.Intersection<THREE.Object3D> | undefined;
-    let nearestDistance = Infinity;
-    // Touch targets overlap on one-metre plots. Prefer the visible handle nearest
-    // the pointer rather than whichever enlarged sphere is nearer the camera.
-    for (const hit of hits) {
-      const knob = handles.get(hit.object.userData.axis as DragAxis)!;
-      knob.getWorldPosition(projectedPoint).project(camera);
-      const x = bounds.left + (projectedPoint.x + 1) * bounds.width / 2;
-      const y = bounds.top + (1 - projectedPoint.y) * bounds.height / 2;
-      const distance = (event.clientX - x) ** 2 + (event.clientY - y) ** 2;
-      if (distance < nearestDistance) { nearestDistance = distance; nearest = hit; }
-    }
-    return nearest;
+  function overHandle(event: PointerEvent): boolean {
+    if (!draw) return false;
+    pointRay(event);
+    const hits = raycaster.intersectObject(hit, false);
+    return hits.length > 0;
   }
   function onPointerDown(event: PointerEvent): void {
-    if (!interactive || event.button !== 0) return;
+    if (!draw || event.button !== 0) return;
     pointRay(event);
-    const hit = pickHandle(event);
-    if (!hit || !raycaster.ray.intersectPlane(dragPlane, planePoint)) return;
+    if (!overHandle(event) || !raycaster.ray.intersectPlane(dragPlane, planePoint)) return;
     event.preventDefault();
-    drag = {
-      axis: hit.object.userData.axis as DragAxis,
-      pointerId: event.pointerId,
-      start: garden.worldToLocal(planePoint.clone()),
-      length: currentLength,
-      width: currentWidth,
-    };
+    drag = { pointerId: event.pointerId, start: farmGroups[draw.farm]!.worldToLocal(planePoint.clone()), length: draw.length, width: draw.width };
     canvas.setPointerCapture(event.pointerId);
     canvas.style.cursor = "grabbing";
     host.classList.add("rooftop-dragging");
   }
   function onPointerMove(event: PointerEvent): void {
-    if (!interactive) return;
+    if (!draw) return;
     pointRay(event);
-    if (!drag) {
-      canvas.style.cursor = pickHandle(event) ? "grab" : "default";
-      return;
-    }
+    if (!drag) { canvas.style.cursor = overHandle(event) ? "grab" : "default"; return; }
     if (event.pointerId !== drag.pointerId || !raycaster.ray.intersectPlane(dragPlane, planePoint)) return;
     event.preventDefault();
-    const local = garden.worldToLocal(planePoint.clone());
-    // The plot grows symmetrically about its fixed centre, keeping it on the roof.
-    // Starting with pointer deltas avoids a jump when a handle is grabbed off-centre.
-    const length = Math.max(1, Math.min(11, Math.round(drag.length + 2 * (local.x - drag.start.x) / unit)));
-    const width = Math.max(1, Math.min(11, Math.round(drag.width + 2 * (local.z - drag.start.z) / unit)));
-    if (length === currentLength && width === currentWidth) return;
-    updateGarden(length, width, false);
-    resizeGarden?.(length, width);
+    const local = farmGroups[draw.farm]!.worldToLocal(planePoint.clone());
+    if (draw.phase === "length") {
+      const length = Math.max(1, Math.min(9, Math.round(drag.length + (local.x - drag.start.x) / unit)));
+      if (length === draw.length) return;
+      draw.length = length;
+    } else {
+      const width = Math.max(1, Math.min(9, Math.round(drag.width + (local.z - drag.start.z) / unit)));
+      if (width === draw.width) return;
+      draw.width = width;
+    }
+    draw.onChange(draw.length, draw.width);
+    renderDrawPreview();
   }
   function finishDrag(): void {
     const pointerId = drag?.pointerId;
     drag = null;
     if (pointerId !== undefined && canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
-    canvas.style.cursor = interactive ? "grab" : "default";
+    canvas.style.cursor = draw ? "grab" : "default";
     host.classList.remove("rooftop-dragging");
+    if (!draw) return;
+    if (draw.phase === "length") {
+      draw.phase = "width";
+      draw.width = 1;
+      draw.onChange(draw.length, draw.width);
+      renderDrawPreview();
+      return;
+    }
+    const { length, width, onComplete } = draw;
+    draw = null;
+    controls.visible = false;
+    drawLengthLabel.style.display = "none";
+    drawWidthLabel.style.display = "none";
+    onComplete(length, width);
   }
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", finishDrag);
   canvas.addEventListener("pointercancel", finishDrag);
   canvas.addEventListener("lostpointercapture", finishDrag);
+
+  function updateOverlay(): void {
+    model.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    const showDemo = labelsVisible;
+    if (showDemo) {
+      const lengthMid = new THREE.Vector3(0, 0.3, -demoWidth * unit / 2 - 1.25);
+      const widthMid = new THREE.Vector3(-demoLength * unit / 2 - 1.35, 0.3, 0);
+      placeOverlay(demoLengthLabel, garden.localToWorld(lengthMid), -18);
+      placeOverlay(demoWidthLabel, garden.localToWorld(widthMid), 0);
+      demoLengthLabel.textContent = `${demoLength} m`;
+      demoWidthLabel.textContent = `${demoWidth} m`;
+      demoLengthLabel.style.display = "block";
+      demoWidthLabel.style.display = "block";
+    } else {
+      demoLengthLabel.style.display = "none";
+      demoWidthLabel.style.display = "none";
+    }
+    marker.style.display = draw ? "grid" : "none";
+    if (draw) updateHandlePosition();
+    for (let i = 0; i < FARM_COUNT; i += 1) {
+      const dimMesh = farmDim[i]!;
+      if (!dimMesh.visible) continue;
+      const length = farmDims[i]!.length || 1;
+      const width = farmDims[i]!.width || 1;
+      dimMesh.scale.set(length * unit + 0.3, 0.9, width * unit + 0.3);
+      dimMesh.position.copy(farmGroups[i]!.position);
+      dimMesh.position.x += length * unit / 2;
+      dimMesh.position.y += 0.5;
+      dimMesh.position.z += width * unit / 2;
+    }
+  }
 
   const meiHead = new THREE.Vector3();
   function render(): void {
@@ -594,6 +741,13 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       meiListener(headX, headY, (1 - meiHead.y) * canvas.clientHeight / 2);
     }
   }
+  let destroyed = false;
+  let isVisible = true;
+  let renderId = 0;
+  let plantToken = 0;
+  let meiListener: ((x: number, y: number, footY: number) => void) | null = null;
+  const anims = new Set<(now: number) => boolean>();
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   function loop(now: number): void {
     renderId = 0;
     if (destroyed) return;
@@ -615,33 +769,39 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
   const backOut = (p: number): number => 1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2;
 
-  function walkIn(onDone?: () => void): void {
-    const face = Math.atan2(meiEnd.x - meiStart.x, meiEnd.z - meiStart.z);
+  let currentStage: "meet" | "build" | "compare" | "complete" = "meet";
+
+  function walkTo(target: THREE.Vector3, onDone?: () => void, duration = 1400): void {
+    const start = mei.position.clone();
+    const face = Math.atan2(target.x - start.x, target.z - start.z);
+    const startFace = mei.rotation.y;
     if (reducedMotion.matches) {
-      mei.position.copy(meiEnd);
+      mei.position.copy(target);
       mei.rotation.set(0, 0.25, 0);
       render();
       onDone?.();
       return;
     }
-    mei.position.copy(meiStart);
-    mei.rotation.set(0, face, 0);
     let t0 = 0;
     run((now) => {
       if (!t0) t0 = now;
-      const p = Math.min(1, (now - t0) / 2400);
+      const p = Math.min(1, (now - t0) / duration);
       const eased = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
-      mei.position.lerpVectors(meiStart, meiEnd, eased);
-      mei.position.y = roofY + Math.abs(Math.sin(p * Math.PI * 7)) * 0.1 * (1 - p);
-      mei.rotation.z = Math.sin(p * Math.PI * 7) * 0.06 * (1 - p);
-      // Turn to face the student over the last part of the walk.
-      mei.rotation.y = face + (0.25 - face) * Math.max(0, (p - 0.75) / 0.25);
+      mei.position.lerpVectors(start, target, eased);
+      mei.position.y = roofY + Math.abs(Math.sin(p * Math.PI * 7)) * 0.08 * (1 - p);
+      mei.rotation.y = startFace + (face - startFace) * Math.min(1, p * 2.4);
       if (p < 1) return false;
-      mei.position.copy(meiEnd);
+      mei.position.copy(target);
       mei.rotation.set(0, 0.25, 0);
       onDone?.();
       return true;
     });
+  }
+  function walkIn(onDone?: () => void): void { walkTo(meiEnd, onDone, 2400); }
+  function walkToFarm(index: number, onDone?: () => void): void {
+    const spot = farmGroups[index]!.localToWorld(new THREE.Vector3(-0.9, 0, -1.15));
+    spot.y = roofY;
+    walkTo(spot, onDone, 1100);
   }
 
   function hop(): void {
@@ -656,17 +816,15 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
 
   function plantSeeds(seeds: number, onPlant: (planted: number) => void, onDone: (planted: number) => void): void {
-    updateGarden(currentLength, currentWidth, false);
-    const lx = currentLength * unit;
-    const wz = currentWidth * unit;
+    renderDemo(demoLength, demoWidth, false);
+    const lx = demoLength * unit;
+    const wz = demoWidth * unit;
     const cells: [number, number][] = [];
-    for (let row = 0; row < currentWidth; row += 1) {
-      for (let column = 0; column < currentLength; column += 1) cells.push([-lx / 2 + (column + 0.5) * unit, -wz / 2 + (row + 0.5) * unit]);
-    }
+    for (let row = 0; row < demoWidth; row += 1) for (let column = 0; column < demoLength; column += 1) cells.push([-lx / 2 + (column + 0.5) * unit, -wz / 2 + (row + 0.5) * unit]);
     const total = Math.max(0, Math.min(seeds, cells.length));
     const token = ++plantToken;
     if (reducedMotion.matches || total === 0) {
-      cells.slice(0, total).forEach(([x, z], i) => plant(cropGroup!, x, z, i * 7, 1.25));
+      cells.slice(0, total).forEach(([x, z], i) => plant(demoCropGroup!, x, z, i * 7, 1.25));
       render();
       onPlant(total);
       onDone(total);
@@ -677,12 +835,12 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     let start = 0;
     let planted = 0;
     run((now) => {
-      if (token !== plantToken || !cropGroup) return true;
+      if (token !== plantToken || !demoCropGroup) return true;
       if (!start) start = now;
       const due = Math.min(total, Math.floor((now - start) / gap) + 1);
       while (planted < due) {
         const [x, z] = cells[planted]!;
-        const item = plant(cropGroup, x, z, planted * 7, 1.25);
+        const item = plant(demoCropGroup, x, z, planted * 7, 1.25);
         item.scale.setScalar(0.01);
         growing.push({ item, t0: now });
         planted += 1;
@@ -698,6 +856,74 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       return true;
     });
   }
+
+  function growFarm(index: number, onDone: () => void): void {
+    const { length, width } = farmDims[index]!;
+    const crop = buildPlotInto(farmGroups[index]!, length, width, false);
+    farmCrop[index] = crop;
+    farmGroups[index]!.visible = true;
+    const lx = length * unit;
+    const wz = width * unit;
+    const cells: [number, number][] = [];
+    for (let row = 0; row < width; row += 1) for (let column = 0; column < length; column += 1) cells.push([-lx / 2 + (column + 0.5) * unit, -wz / 2 + (row + 0.5) * unit]);
+    const token = ++plantToken;
+    if (reducedMotion.matches) {
+      crop.clear();
+      cells.forEach(([x, z], i) => plant(crop, x, z, i * 7, 1.25));
+      render();
+      onDone();
+      return;
+    }
+    crop.clear();
+    const gap = Math.max(50, Math.min(200, 2200 / Math.max(1, cells.length)));
+    const growing: { item: THREE.Group; t0: number }[] = [];
+    let start = 0;
+    let planted = 0;
+    run((now) => {
+      if (token !== plantToken) return true;
+      if (!start) start = now;
+      const due = Math.min(cells.length, Math.floor((now - start) / gap) + 1);
+      while (planted < due) {
+        const [x, z] = cells[planted]!;
+        const item = plant(crop, x, z, planted * 7, 1.25);
+        item.scale.setScalar(0.01);
+        growing.push({ item, t0: now });
+        planted += 1;
+      }
+      for (let i = growing.length - 1; i >= 0; i -= 1) {
+        const p = Math.min(1, (now - growing[i]!.t0) / 300);
+        growing[i]!.item.scale.setScalar(Math.max(0.01, 1.25 * backOut(p)));
+        if (p >= 1) growing.splice(i, 1);
+      }
+      if (planted < cells.length || growing.length) return false;
+      onDone();
+      return true;
+    });
+  }
+
+  function dimFarm(index: number, dim: boolean): void {
+    farmDim[index]!.visible = dim;
+    render();
+  }
+
+  function resetFarms(): void {
+    for (let i = 0; i < FARM_COUNT; i += 1) {
+      farmGroups[i]!.clear();
+      farmGroups[i]!.visible = false;
+      farmCrop[i] = null;
+      farmDims[i] = { length: 0, width: 0 };
+      farmDim[i]!.visible = false;
+    }
+    render();
+  }
+
+  function beginDraw(index: number, onChange: (length: number, width: number) => void, onComplete: (length: number, width: number) => void): void {
+    farmDims[index] = { length: 1, width: 0 };
+    draw = { farm: index, phase: "length", length: 1, width: 0, onChange, onComplete: (length, width) => { farmDims[index] = { length, width }; onComplete(length, width); } };
+    controls.visible = true;
+    renderDrawPreview();
+  }
+
   function setFenceLeft(metres: number): void {
     const target = Math.max(0, Math.min(planks.length, Math.round(metres)));
     if (destroyed || target === fenceLeft) return;
@@ -733,12 +959,9 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const width = Math.max(1, Math.round(bounds.width));
     const height = Math.max(1, Math.round(bounds.height || 400));
     const aspect = width / height;
-    // Frame the garden and its immediate rooftop, not the entire city skyline.
-    // The lens stays still while dragging so world-space movement remains stable.
-    const frameWidth = currentStage === "meet" ? 12.8 : 10.6;
-    const frameHeight = currentStage === "meet" ? 9.2 : 7.3;
+    const frameWidth = currentStage === "meet" ? 12.8 : currentStage === "build" || currentStage === "compare" ? 15.8 : 10.6;
+    const frameHeight = currentStage === "meet" ? 9.2 : currentStage === "build" || currentStage === "compare" ? 8.6 : 7.3;
     const halfHeight = Math.max(frameHeight / 2, frameWidth / (2 * aspect));
-    // On tall phone screens, raise the garden and Mei so Mei's bubble fits under her without covering the garden.
     const lift = aspect < 0.9 ? halfHeight * 0.3 : 0;
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
@@ -746,63 +969,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     camera.bottom = -halfHeight - lift;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
-    render();
-  }
-
-  function updateGarden(length: number, width: number, harvest: boolean): void {
-    if (destroyed) return;
-    plantToken += 1;
-    garden.clear();
-    const safeLength = Number.isFinite(length) ? Math.max(1, Math.min(11, Math.round(length))) : 6;
-    const safeWidth = Number.isFinite(width) ? Math.max(1, Math.min(11, Math.round(width))) : 6;
-    // Keep the changing plot readable at card size while reserving the rooftop's
-    // paths and work area, even at the widest selectable dimensions.
-    currentLength = safeLength;
-    currentWidth = safeWidth;
-    updateControlPositions();
-    const lx = safeLength * unit;
-    const wz = safeWidth * unit;
-    box(garden, "#bca37a", 0, 0.065, 0, lx + 0.22, 0.13, wz + 0.22);
-    box(garden, "#826344", 0, 0.145, 0, lx, 0.1, wz);
-    // Small inset grid markers: one plot cell represents one square metre.
-    for (let column = 0; column <= safeLength; column += 1) box(garden, "#b0916a", -lx / 2 + column * unit, 0.202, 0, 0.032, 0.014, wz);
-    for (let row = 0; row <= safeWidth; row += 1) box(garden, "#b0916a", 0, 0.202, -wz / 2 + row * unit, lx, 0.014, 0.032);
-    const fence = "#d9bb83";
-    const post = (x: number, z: number): void => {
-      box(garden, fence, x, 0.37, z, 0.06, 0.46, 0.06);
-      cylinder(garden, "#e7cc9c", x, 0.62, z, 0, 0.052, 0.08, 4);
-    };
-    for (let i = 0; i <= safeLength; i += 1) {
-      const x = -lx / 2 + i * unit;
-      post(x, -wz / 2);
-      post(x, wz / 2);
-    }
-    for (let i = 1; i < safeWidth; i += 1) {
-      const z = -wz / 2 + i * unit;
-      post(-lx / 2, z);
-      post(lx / 2, z);
-    }
-    for (const y of [0.34, 0.52]) {
-      for (const z of [-wz / 2, wz / 2]) box(garden, fence, 0, y, z, lx + 0.05, 0.038, 0.035);
-      for (const x of [-lx / 2, lx / 2]) box(garden, fence, x, y, 0, 0.035, 0.038, wz + 0.05);
-    }
-    cropGroup = new THREE.Group();
-    cropGroup.position.y = 0.22;
-    garden.add(cropGroup);
-    if (harvest) {
-      for (let column = 0; column < safeLength; column += 1) {
-        for (let row = 0; row < safeWidth; row += 1) {
-          plant(cropGroup, -lx / 2 + (column + 0.5) * unit, -wz / 2 + (row + 0.5) * unit, column * 13 + row, 1.25);
-        }
-      }
-    } else {
-      for (let column = 0; column < safeLength; column += 1) {
-        for (let row = 0; row < safeWidth; row += 1) {
-          cylinder(cropGroup, "#ae8c5f", -lx / 2 + (column + 0.5) * unit, 0.004, -wz / 2 + (row + 0.5) * unit, 0.026, 0.026, 0.008, 5);
-        }
-      }
-    }
-    canvas.setAttribute("aria-label", `Auntie Mei’s rooftop. The garden is ${safeLength} by ${safeWidth} metres${harvest ? `, growing ${safeLength * safeWidth} plants` : ", ready to plant"}.`);
     render();
   }
 
@@ -822,14 +988,20 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const onMotion = (): void => render();
   reducedMotion.addEventListener("change", onMotion);
   resize();
-  updateGarden(8, 4, false);
+  renderDemo(8, 4, false);
 
   return {
-    updateGarden,
+    updateGarden: renderDemo,
     walkIn,
+    walkToFarm,
     hop,
     plantSeeds,
     setFenceLeft,
+    beginDraw,
+    canDraw: () => true,
+    growFarm,
+    dimFarm,
+    resetFarms,
     onMeiMove(listener) {
       meiListener = listener;
       render();
@@ -838,18 +1010,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       currentStage = stage;
       if (stage !== "meet") mei.rotation.y = stage === "complete" ? -0.18 : 0.25;
       resize();
-    },
-    setInteractive(enabled, onResize) {
-      if (destroyed) return;
-      interactive = enabled;
-      resizeGarden = onResize;
-      controls.visible = enabled;
-      canvas.style.pointerEvents = enabled ? "auto" : "none";
-      canvas.style.touchAction = enabled ? "none" : "auto";
-      canvas.style.cursor = enabled ? "grab" : "default";
-      if (!enabled) finishDrag();
-      updateControlPositions();
-      render();
     },
     showLabels(enabled) {
       labelsVisible = enabled;
@@ -864,7 +1024,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       visibilityObserver.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       reducedMotion.removeEventListener("change", onMotion);
-      finishDrag();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", finishDrag);
@@ -877,6 +1036,159 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       canvas.remove();
       overlay.remove();
       host.style.position = previousPosition;
+    },
+  };
+}
+
+/** A small, independent, rotatable 3D preview of one finished farm, used in the comparison cards. */
+export function mountFarmCard(host: HTMLElement, length: number, width: number): { destroy(): void } {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const canvas = renderer.domElement;
+  canvas.style.display = "block";
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.style.touchAction = "none";
+  host.append(canvas);
+
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight("#fff6df", "#829b85", 2.2));
+  const sun = new THREE.DirectionalLight("#ffefcc", 2.4);
+  sun.position.set(-3, 6, 5);
+  scene.add(sun);
+
+  const materials: THREE.Material[] = [];
+  const geometries: THREE.BufferGeometry[] = [];
+  const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+  geometries.push(boxGeometry);
+  const cylinderCache = new Map<string, THREE.BufferGeometry>();
+  const matCache = new Map<string, THREE.MeshStandardMaterial>();
+  const mat = (color: string): THREE.MeshStandardMaterial => {
+    const existing = matCache.get(color);
+    if (existing) return existing;
+    const m = new THREE.MeshStandardMaterial({ color, roughness: 0.92, flatShading: true });
+    matCache.set(color, m);
+    materials.push(m);
+    return m;
+  };
+  const box = (parent: THREE.Object3D, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number): void => {
+    const item = new THREE.Mesh(boxGeometry, mat(color));
+    item.position.set(x, y, z);
+    item.scale.set(sx, sy, sz);
+    parent.add(item);
+  };
+  const cylinder = (parent: THREE.Object3D, color: string, x: number, y: number, z: number, top: number, bottom: number, height: number, sides = 6): void => {
+    const key = `${top}-${bottom}-${height}-${sides}`;
+    let shape = cylinderCache.get(key);
+    if (!shape) { shape = new THREE.CylinderGeometry(top, bottom, height, sides); cylinderCache.set(key, shape); geometries.push(shape); }
+    const item = new THREE.Mesh(shape, mat(color));
+    item.position.set(x, y, z);
+    parent.add(item);
+  };
+  const dodecahedron = new THREE.DodecahedronGeometry(1, 0);
+  geometries.push(dodecahedron);
+  const rock = (parent: THREE.Object3D, color: string, x: number, y: number, z: number, scale: number, sx = 1, sy = 1, sz = 1): void => {
+    const item = new THREE.Mesh(dodecahedron, mat(color));
+    item.position.set(x, y, z);
+    item.scale.set(scale * sx, scale * sy, scale * sz);
+    parent.add(item);
+  };
+
+  const plot = new THREE.Group();
+  scene.add(plot);
+  const u = 0.62;
+  const lx = length * u;
+  const wz = width * u;
+  box(plot, "#bca37a", 0, 0.065, 0, lx + 0.22, 0.13, wz + 0.22);
+  box(plot, "#826344", 0, 0.145, 0, lx, 0.1, wz);
+  for (let column = 0; column <= length; column += 1) box(plot, "#b0916a", -lx / 2 + column * u, 0.202, 0, 0.03, 0.014, wz);
+  for (let row = 0; row <= width; row += 1) box(plot, "#b0916a", 0, 0.202, -wz / 2 + row * u, lx, 0.014, 0.03);
+  const post = (x: number, z: number): void => { box(plot, "#d9bb83", x, 0.37, z, 0.055, 0.44, 0.055); cylinder(plot, "#e7cc9c", x, 0.6, z, 0, 0.05, 0.075, 4); };
+  for (let i = 0; i <= length; i += 1) { const x = -lx / 2 + i * u; post(x, -wz / 2); post(x, wz / 2); }
+  for (let i = 1; i < width; i += 1) { const z = -wz / 2 + i * u; post(-lx / 2, z); post(lx / 2, z); }
+  for (const y of [0.33, 0.5]) {
+    for (const z of [-wz / 2, wz / 2]) box(plot, "#d9bb83", 0, y, z, lx + 0.05, 0.035, 0.03);
+    for (const x of [-lx / 2, lx / 2]) box(plot, "#d9bb83", x, y, 0, 0.03, 0.035, wz + 0.05);
+  }
+  for (let column = 0; column < length; column += 1) {
+    for (let row = 0; row < width; row += 1) {
+      const px = -lx / 2 + (column + 0.5) * u;
+      const pz = -wz / 2 + (row + 0.5) * u;
+      cylinder(plot, "#789757", px, 0.28, pz, 0.028, 0.032, 0.21, 5);
+      const leafColors = ["#80a958", "#5f915a", "#9cbb6a"];
+      const seed = column * 13 + row;
+      for (let leaf = 0; leaf < 4; leaf += 1) {
+        const angle = leaf * Math.PI / 2 + seed * 0.21;
+        rock(plot, leafColors[(leaf + seed) % leafColors.length]!, px + Math.sin(angle) * 0.075, 0.38 + (leaf % 2) * 0.028, pz + Math.cos(angle) * 0.075, 0.11, 1.15, 0.65, 1.7);
+      }
+    }
+  }
+
+  const footprint = Math.max(lx, wz, 1.4);
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
+  let azimuth = Math.PI * 0.22;
+  const elevation = 0.62;
+  const distance = footprint * 2.1 + 1.3;
+  function placeCamera(): void {
+    camera.position.set(Math.sin(azimuth) * distance * Math.cos(elevation), distance * Math.sin(elevation), Math.cos(azimuth) * distance * Math.cos(elevation));
+    camera.lookAt(0, 0.15, 0);
+  }
+  placeCamera();
+
+  let destroyed = false;
+  function render(): void { if (!destroyed) renderer.render(scene, camera); }
+  function resize(): void {
+    const bounds = host.getBoundingClientRect();
+    const size = Math.max(1, Math.round(Math.min(bounds.width, bounds.height || bounds.width)));
+    camera.aspect = bounds.width / (bounds.height || bounds.width);
+    camera.updateProjectionMatrix();
+    renderer.setSize(Math.max(1, Math.round(bounds.width)), Math.max(1, Math.round(bounds.height || bounds.width)), false);
+    void size;
+    render();
+  }
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(host);
+  resize();
+
+  let dragId: number | null = null;
+  let lastX = 0;
+  const onDown = (event: PointerEvent): void => {
+    dragId = event.pointerId;
+    lastX = event.clientX;
+    canvas.setPointerCapture(event.pointerId);
+  };
+  const onMove = (event: PointerEvent): void => {
+    if (dragId !== event.pointerId) return;
+    azimuth += (event.clientX - lastX) * 0.012;
+    lastX = event.clientX;
+    placeCamera();
+    render();
+  };
+  const onUp = (event: PointerEvent): void => {
+    if (dragId !== event.pointerId) return;
+    dragId = null;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  };
+  canvas.addEventListener("pointerdown", onDown);
+  canvas.addEventListener("pointermove", onMove);
+  canvas.addEventListener("pointerup", onUp);
+  canvas.addEventListener("pointercancel", onUp);
+
+  return {
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      resizeObserver.disconnect();
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
+      geometries.forEach((g) => g.dispose());
+      materials.forEach((m) => m.dispose());
+      renderer.dispose();
+      canvas.remove();
     },
   };
 }

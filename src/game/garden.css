@@ -65,6 +65,21 @@
 .g-verdict:not(.is-ok){top:1.25rem;transform:translateX(-50%);grid-auto-flow:column;align-items:center;gap:1rem}
 .g-verdict:not(.is-ok) .g-verdict__mark{width:64px;height:64px;font-size:2.4rem;box-shadow:0 0 0 5px #fffdf8,0 12px 30px -12px #000a}
 
+/* Compare: three 3D cards, reordered to rank area */
+.g-compare{position:absolute;inset:0;z-index:8;display:grid;align-content:center;justify-items:center;gap:.9rem;padding:1rem;overflow:auto;background:#dfe7d6b3;backdrop-filter:blur(3px)}
+.g-compare__prompt{margin:0;font:650 1.05rem var(--sans);text-align:center}
+.g-compare__row{display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center}
+.g-compare__row.is-solved .g-card{box-shadow:0 0 0 3px #2e8b57}
+.g-card{display:grid;justify-items:center;gap:.4rem;width:150px;padding:.6rem;background:#fffdf8;border:1px solid #d9dfcf;border-radius:14px;box-shadow:0 10px 26px -18px #17342180}
+.g-card__scene{width:100%;height:120px;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#eef4e4,#dde6d3)}
+.g-card__scene canvas{cursor:grab}
+.g-card__area{margin:0;font:700 1.05rem var(--sans);color:var(--teal)}
+.g-card__moves{display:flex;gap:.4rem}
+.g-card__moves button{width:34px;height:34px;border:1px solid #cfd8c9;border-radius:50%;background:#fff;color:var(--teal);font-weight:700}
+.g-compare__result{margin:0;min-height:1.3em;font-size:.95rem;font-weight:600}
+.g-compare__result.is-ok{color:#2e8b57}
+.g-compare__result.is-wrong{color:#c4473a}
+
 /* Notepad */
 .g-pad{position:absolute;inset:0;z-index:8;display:grid;place-items:center;padding:1rem;overflow:auto;background:#dfe7d6b3;backdrop-filter:blur(3px)}
 .g-pad__sheet{position:relative;width:min(640px,100%);display:grid;gap:.85rem;background:#fffdf8;border:1px solid #d9dfcf;border-top:10px solid #24483a;border-radius:14px;padding:1.2rem 1.4rem 1.3rem;box-shadow:0 30px 70px -35px #17352299;animation:g-up .45s both}
@@ -121,5 +136,11 @@
   .g-pad{padding:.5rem;place-items:start center}
   .g-pad__sheet{padding:1rem;gap:.7rem}
   .g-pad__q{font-size:1rem}
+  .g-compare{padding:.5rem;place-items:start center}
+  .g-compare__prompt{font-size:.92rem}
+  .g-card{width:104px;padding:.45rem}
+  .g-card__scene{height:88px}
+  .g-card__area{font-size:.88rem}
+  .g-card__moves button{width:28px;height:28px}
 }
 @media(prefers-reduced-motion:reduce){.g *{animation:none!important;transition:none!important}}
