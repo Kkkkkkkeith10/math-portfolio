@@ -505,10 +505,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       marker.style.display = interactive ? "grid" : "none";
       if (interactive) placeOverlay(marker, knob.getWorldPosition(new THREE.Vector3()));
     }
-    const lengthMidpoint = new THREE.Vector3(0, 0.3, -currentWidth * unit / 2 - 0.27);
-    const widthMidpoint = new THREE.Vector3(-currentLength * unit / 2 - 0.35, 0.3, 0);
-    placeOverlay(lengthLabel, garden.localToWorld(lengthMidpoint), -10);
-    placeOverlay(widthLabel, garden.localToWorld(widthMidpoint), 3);
+    const lengthMidpoint = new THREE.Vector3(0, 0.3, -currentWidth * unit / 2 - 1.25);
+    const widthMidpoint = new THREE.Vector3(-currentLength * unit / 2 - 1.35, 0.3, 0);
+    placeOverlay(lengthLabel, garden.localToWorld(lengthMidpoint), -18);
+    placeOverlay(widthLabel, garden.localToWorld(widthMidpoint), 0);
   }
 
   function pointRay(event: PointerEvent): void {
