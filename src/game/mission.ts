@@ -221,6 +221,11 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       say(`You tried ${length} × ${width}. Try a new shape.`, [], extra);
       return;
     }
+    if (!found36 && plans.length === MAX_GARDENS - 1 && (length !== 6 || width !== 6)) {
+      awaitingDrag = true;
+      say(`That's ${length} × ${width}. Make both sides equal: <b>6 m × 6 m</b>.`, [], extra);
+      return;
+    }
     const goal = found36 ? " More than 36, remember." : "";
     askSeeds(`Nice! <b>${length} m</b> long and <b>${width} m</b> wide is 24 m around. <b>How many plants</b> can I plant?${goal}`, extra);
   }
