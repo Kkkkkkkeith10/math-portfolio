@@ -69,38 +69,50 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   const canDraw = (): boolean => !!scene && scene.canDraw();
 
   /* ---------- Mei's speech bubble ---------- */
+  /* The plant counter lives in the top-right. Keep Mei's bubble out of that corner. */
+  function clearOfCounter(left: number, top: number, bw: number, bh: number): { left: number; top: number } {
+    const counter = $("g-counter");
+    if (counter.hidden) return { left, top };
+    const pad = 12;
+    const wr = world.getBoundingClientRect();
+    const cr = counter.getBoundingClientRect();
+    const box = { x: cr.left - wr.left, y: cr.top - wr.top, r: cr.right - wr.left, b: cr.bottom - wr.top };
+    const hits = left < box.r + pad && left + bw > box.x - pad && top < box.b + pad && top + bh > box.y - pad;
+    if (!hits) return { left, top };
+    const shifted = box.x - pad - bw;
+    if (shifted >= 8) return { left: shifted, top };
+    return { left, top: Math.max(top, box.b + pad) };
+  }
   function placeBubble(): void {
     const bubble = $("g-bubble");
     if (bubble.hidden) return;
     const w = world.clientWidth;
     const bw = bubble.offsetWidth;
     const bh = bubble.offsetHeight;
+    let left: number;
+    let top: number;
     if (root.dataset.phase !== "meet") {
       // Mei stands on the left of the plot, so the bubble hangs above her and reaches left, away from the farm.
       bubble.classList.remove("is-below");
       bubble.classList.add("is-tail");
-      const left = Math.max(8, Math.min(w - bw - 8, meiX - bw + 44));
-      bubble.style.left = `${left}px`;
-      bubble.style.top = `${Math.max(8, meiY - bh - 16)}px`;
-      bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
-      return;
-    }
-    if (phone.matches) {
+      left = Math.max(8, Math.min(w - bw - 8, meiX - bw + 44));
+      top = Math.max(8, meiY - bh - 16);
+    } else if (phone.matches) {
       bubble.classList.remove("is-tail");
       // Phones: the bubble comes from Mei's mouth, hangs just below her and points up at her.
       bubble.classList.add("is-below");
-      const left = Math.max(8, Math.min(w - bw - 8, meiX - bw / 2));
-      bubble.style.left = `${left}px`;
-      bubble.style.top = `${Math.min(world.clientHeight - bh - 8, meiFoot + 6)}px`;
-      bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
-      return;
+      left = Math.max(8, Math.min(w - bw - 8, meiX - bw / 2));
+      top = Math.min(world.clientHeight - bh - 8, meiFoot + 6);
+    } else {
+      // Wider screens: Mei stands front-right of her farm, so the bubble reaches right, away from it.
+      bubble.classList.remove("is-below");
+      bubble.classList.add("is-tail");
+      left = Math.max(12, Math.min(w - bw - 12, meiX - 40));
+      top = Math.max(12, meiY - bh - 14);
     }
-    // Wider screens: Mei stands front-right of her farm, so the bubble reaches right, away from it.
-    bubble.classList.remove("is-below");
-    bubble.classList.add("is-tail");
-    const left = Math.max(12, Math.min(w - bw - 12, meiX - 40));
+    ({ left, top } = clearOfCounter(left, top, bw, bh));
     bubble.style.left = `${left}px`;
-    bubble.style.top = `${Math.max(12, meiY - bh - 14)}px`;
+    bubble.style.top = `${top}px`;
     bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
   }
   function say(text: string, replies: Reply[] = [], extra?: HTMLElement): void {

@@ -59,7 +59,7 @@
 .g-seeds.is-exact>b{color:#2e8b57}
 
 /* Big tick / cross */
-.g-counter{position:absolute;z-index:6;left:50%;top:1.25rem;transform:translateX(-50%);padding:.5rem 1.1rem;background:#fffdf8;border:2px solid #24483a;border-radius:999px;font:600 1.1rem var(--sans);color:#3d4a43;box-shadow:0 10px 26px -16px #17342190}
+.g-counter{position:absolute;z-index:7;right:1rem;top:3.6rem;padding:.5rem 1.1rem;background:#fffdf8;border:2px solid #24483a;border-radius:999px;font:600 1.1rem var(--sans);color:#3d4a43;box-shadow:0 10px 26px -16px #17342190}
 .g-counter b{font-size:1.5rem;color:var(--teal)}
 .g-counter.is-over b{color:#c4473a}
 .g-verdict{position:absolute;z-index:9;left:50%;top:44%;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:.6rem;text-align:center;pointer-events:none}
@@ -120,7 +120,7 @@
 
 @media(max-width:560px){
   .g-full{display:none}
-  .g-counter{left:auto;right:.5rem;top:.5rem;transform:none;padding:.35rem .8rem;font-size:.95rem}
+  .g-counter{right:.5rem;top:.5rem;padding:.35rem .8rem;font-size:.95rem}
   .g-counter b{font-size:1.25rem}
   .g-world{min-height:540px}
   /* On phones the bubble stays on Mei, just below her, so it never covers the garden above. */
