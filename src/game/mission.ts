@@ -4,46 +4,34 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import "./garden.css";
 
 const FENCE = 24;
+/** Wrong answers to the 8 cm × 6 cm question that match a real student case in section 03. */
+const REAL_CASES: Record<number, number> = { 14: 0, 28: 1, 42: 2 };
 
 interface Reply { label: string; then: () => void }
 
 export function mountMission(container: HTMLElement): { destroy(): void } {
   container.innerHTML = `
   <div class="g" data-phase="meet">
-    <div class="g-layout">
-      <div class="g-world">
-        <button type="button" class="g-full" id="g-full" aria-pressed="false">⛶ Full screen</button>
-        <div id="rooftop-scene" role="group" aria-label="Mei's rooftop garden. Drag the round handles to change the size of the garden." data-lenis-prevent></div>
-        <div class="g-bubble" id="g-bubble" hidden aria-live="polite"><b>Mei</b><p id="g-say"></p><div class="g-replies" id="g-replies"></div></div>
-        <div class="g-slot" id="g-slot" hidden aria-live="polite"><span class="g-slot__icon" aria-hidden="true"><i></i><i></i><i></i></span><b id="g-slot-n">0</b><small>seeds left</small></div>
-        <div class="g-verdict" id="g-verdict" hidden aria-live="assertive"><span class="g-verdict__mark" id="g-mark"></span><p id="g-verdict-text"></p></div>
-        <details class="g-notebook" id="g-notebook" hidden><summary>✎ My notebook</summary>
-          <div class="g-board-wrap"><div class="g-tools" role="group" aria-label="Notebook tools"><button type="button" data-tool="pen" aria-pressed="true">✎ Pen</button><button type="button" data-tool="eraser" aria-pressed="false">Eraser</button><button type="button" id="g-undo">↶ Undo</button></div>
-          <svg id="g-board" role="img" aria-label="Your notebook: the garden drawn on squared paper, with your own writing" data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse"><path id="g-grid-path" fill="none"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-geo"></g><g id="g-ink"></g></svg>
-          <p class="g-board-foot">Each square is 1 m². Write your working here.</p></div>
-        </details>
-        <section class="g-done" id="g-done" hidden>
-          <div class="g-find"><span>Your first Find</span><b>Equal sides,<br>most plants.</b><small>For rectangles with the same perimeter, a square has the greatest area.</small></div>
-          <div><h3>You found it!</h3><p id="g-done-text"></p><a class="g-btn" href="#error">See how MathsAI spots mistakes ↓</a><button type="button" class="g-link" id="g-restart">Play again</button></div>
-        </section>
-      </div>
-      <aside class="g-panel" id="g-panel" hidden>
-        <p class="g-plan" id="g-plan">Plan A</p>
-        <div class="g-field">
-          <p class="g-label"><b>1</b> Shape your garden</p>
-          <label for="g-len">Length <output id="g-len-out">8 m</output></label><input id="g-len" type="range" min="1" max="11" value="8">
-          <label for="g-wid">Width <output id="g-wid-out">3 m</output></label><input id="g-wid" type="range" min="1" max="11" value="3">
-          <div class="g-fence"><span>Fence used</span><b id="g-fence">22 / 24 m</b></div>
-          <div class="g-track"><i id="g-fence-fill"></i></div>
-          <p class="g-fence-note" id="g-fence-note"></p>
+    <div class="g-world">
+      <button type="button" class="g-full" id="g-full" aria-pressed="false">⛶ Full screen</button>
+      <div id="rooftop-scene" role="group" aria-label="Mei's rooftop garden. Drag the round handles to change the size of the garden." data-lenis-prevent></div>
+      <div class="g-bubble" id="g-bubble" hidden aria-live="polite"><b>Mei</b><p id="g-say"></p><div class="g-replies" id="g-replies"></div></div>
+      <div class="g-stack" id="g-stack" hidden aria-live="polite"><div class="g-planks" id="g-planks" aria-hidden="true">${"<i></i>".repeat(FENCE)}</div><p id="g-stack-text"></p></div>
+      <div class="g-seeds" id="g-seeds-left" hidden aria-live="polite"><span aria-hidden="true">🌱</span><b id="g-seed-n">0</b><small>left</small></div>
+      <div class="g-verdict" id="g-verdict" hidden aria-live="assertive"><span class="g-verdict__mark" id="g-mark"></span><p id="g-verdict-text"></p></div>
+      <section class="g-pad" id="g-pad" hidden aria-labelledby="g-pad-q">
+        <div class="g-pad__sheet">
+          <p class="g-pad__tag">TSA-style question</p>
+          <p class="g-pad__q" id="g-pad-q">The figure shows a rectangle <b>8 cm</b> long and <b>6 cm</b> wide. Find its area.</p>
+          <div class="g-pad__work">
+            <div class="g-tools" role="group" aria-label="Notepad tools"><button type="button" data-tool="pen" aria-pressed="true">✎ Pen</button><button type="button" data-tool="eraser" aria-pressed="false">Eraser</button><button type="button" id="g-undo">↶ Undo</button></div>
+            <svg id="g-board" role="img" aria-label="Notepad: squared paper with the rectangle. Write your working here." data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse" width="20" height="20"><path d="M20 0H0V20" fill="none" stroke="#e2e6dc"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-geo"></g><g id="g-ink"></g></svg>
+          </div>
+          <form class="g-pad__answer" id="g-answer-form"><label for="g-answer">Area =</label><input id="g-answer" type="number" inputmode="numeric" min="0" placeholder="?"><span>cm²</span><button type="submit" class="g-btn">Check</button></form>
+          <p class="g-pad__result" id="g-result" aria-live="polite"></p>
+          <div class="g-pad__foot"><a class="g-btn" href="#error" id="g-real">See real student working ↓</a><button type="button" class="g-link" id="g-restart">Play again</button></div>
         </div>
-        <div class="g-field">
-          <p class="g-label"><b>2</b> How many seeds will fit?</p>
-          <div class="g-guess"><input id="g-seeds" type="number" inputmode="numeric" min="1" max="121" placeholder="?" aria-label="Number of seeds"><span>seeds</span></div>
-          <button type="button" class="g-btn" id="g-plant">Plant the seeds</button>
-        </div>
-        <ul class="g-saved" id="g-saved" aria-label="Your plans"></ul>
-      </aside>
+      </section>
     </div>
   </div>`;
 
@@ -60,17 +48,28 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   let destroyed = false;
   let seen = false;
   let started = false;
-  let length = 8;
-  let width = 3;
-  let busy = false;
+  let length = 3;
+  let width = 2;
+  let building = false;
+  let prompt = "";
+  let found36 = false;
+  let askedWhy = false;
+  let beatTries = 0;
+  let lastAnswer: number | null = null;
   const plans: GardenPlan[] = [];
   let ink: number[][][] = [];
   const history: number[][][][] = [];
   let tool: "pen" | "eraser" = "pen";
   let stroke: number[][] | null = null;
-  let boardWidth = 520;
+  let boardWidth = 600;
+  const boardHeight = 260;
   let meiX = 0;
   let meiY = 0;
+
+  const key = (l: number, w: number): string => `${Math.max(l, w)}x${Math.min(l, w)}`;
+  const tried = (l: number, w: number): boolean => plans.some((p) => key(p.length, p.width) === key(l, w));
+  const fenceUsed = (): number => 2 * (length + width);
+  const canDrag = (): boolean => !!scene && !$("rooftop-scene").classList.contains("rooftop-unavailable");
 
   /* ---------- Mei's speech bubble ---------- */
   function placeBubble(): void {
@@ -82,12 +81,10 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const w = world.clientWidth;
     const bw = bubble.offsetWidth;
     const bh = bubble.offsetHeight;
-    const left = Math.max(12, Math.min(w - bw - 12, meiX - bw + 40));
-    const top = Math.max(12, meiY - bh - 14);
-    bubble.style.left = `${left}px`;
-    bubble.style.top = `${top}px`;
+    bubble.style.left = `${Math.max(12, Math.min(w - bw - 12, meiX - bw + 40))}px`;
+    bubble.style.top = `${Math.max(12, meiY - bh - 14)}px`;
   }
-  function say(text: string, replies: Reply[] = []): void {
+  function say(text: string, replies: Reply[] = [], extra?: HTMLElement): void {
     const bubble = $("g-bubble");
     bubble.hidden = false;
     $("g-say").innerHTML = text;
@@ -99,226 +96,246 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       b.addEventListener("click", r.then, { once: true });
       return b;
     }));
+    if (extra) box.append(extra);
     bubble.classList.remove("pop");
     void bubble.offsetWidth;
     bubble.classList.add("pop");
     scene?.hop();
     placeBubble();
   }
+  function setPhase(phase: "meet" | "build" | "done"): void {
+    root.dataset.phase = phase;
+    placeBubble();
+  }
 
-  /* ---------- The opening conversation ---------- */
+  /* ---------- Opening ---------- */
   function intro(): void {
     if (started || !seen || !scene) return;
     started = true;
-    scene.walkIn(() => {
-      say("Hi! I'm Auntie Mei. Can you help me with my rooftop garden?", [{ label: "Sure! What do you need?", then: rules }]);
-    });
-  }
-  function rules(): void {
-    say("I have <b>24 m of fence</b>. Every <b>1 m × 1 m square</b> inside the fence grows <b>one plant</b>.", [{ label: "Got it", then: check }]);
+    scene.walkIn(() => say("Hi! I'm Auntie Mei. Can you help with my garden?", [{ label: "Sure!", then: check }]));
   }
   function check(): void {
-    say("Quick check: a garden is <b>3 m long</b> and <b>2 m wide</b>. How many plants fit?", [
-      { label: "5", then: () => say("Not quite. 3 + 2 = 5 adds the sides. Count the squares: 3 × 2 = <b>6</b>.", [{ label: "Oh, 6!", then: task }]) },
-      { label: "6", then: () => say("Yes! 3 rows of 2 squares: 3 × 2 = <b>6</b> plants.", [{ label: "Easy", then: task }]) },
+    scene?.updateGarden(3, 2, true);
+    say("Each square grows one plant. How many plants fit in this garden?", [
+      { label: "5", then: () => say("Count the squares: 3 × 2 = <b>6</b>.", [{ label: "Oh, 6!", then: task }]) },
+      { label: "6", then: () => say("Yes! 3 × 2 = <b>6</b>.", [{ label: "Next", then: task }]) },
     ]);
   }
   function task(): void {
-    say("Your task: build a garden that uses <b>all 24 m</b> of fence. Then tell me <b>how many seeds</b> to plant.", [{ label: "I'm on it!", then: build }]);
+    setPhase("build");
+    updateGardenState({ phase: "build" });
+    scene?.setStage("build");
+    length = 3;
+    width = 2;
+    $("g-stack").hidden = false;
+    changed();
+    unlock();
   }
 
-  /* ---------- Build and plant ---------- */
-  function setStep(step: "meet" | "build" | "more" | "done"): void {
-    root.dataset.phase = step;
-    const order = ["meet", "build", "more"];
-    root.querySelectorAll<HTMLElement>("[data-step]").forEach((li) => {
-      const i = order.indexOf(li.dataset.step!);
-      const now = step === "done" ? 3 : order.indexOf(step);
-      li.classList.toggle("is-done", i < now);
-      if (i === now) li.setAttribute("aria-current", "step");
-      else li.removeAttribute("aria-current");
-    });
-  }
-  function build(): void {
-    setStep("build");
-    updateGardenState({ phase: "build" });
-    $("g-panel").hidden = false;
-    $("g-notebook").hidden = false;
-    scene?.setStage("build");
-    unlock();
-    say("Drag the round handles, or use the sliders. Use exactly 24 m of fence.");
-    requestAnimationFrame(() => { drawBoard(); ScrollTrigger.refresh(); });
-  }
+  /* ---------- Build: Mei's bubble is the only control ---------- */
   function unlock(): void {
-    busy = false;
-    for (const id of ["g-len", "g-wid", "g-seeds", "g-plant"]) $<HTMLInputElement>(id).disabled = false;
+    building = true;
+    prompt = "";
     scene?.setInteractive(true, (l, w) => { if (l === length && w === width) return; length = l; width = w; changed(); });
+    buildPrompt();
   }
   function lock(): void {
-    busy = true;
-    for (const id of ["g-len", "g-wid", "g-seeds", "g-plant"]) $<HTMLInputElement>(id).disabled = true;
+    building = false;
     scene?.setInteractive(false);
   }
-  const fenceUsed = (): number => 2 * (length + width);
-  function renderShape(): void {
-    const fence = fenceUsed();
-    $("g-len-out").textContent = `${length} m`;
-    $("g-wid-out").textContent = `${width} m`;
-    $<HTMLInputElement>("g-len").value = String(length);
-    $<HTMLInputElement>("g-wid").value = String(width);
-    $("g-fence").textContent = `${fence} / ${FENCE} m`;
-    const fill = $("g-fence-fill");
-    fill.style.width = `${Math.min(1, fence / FENCE) * 100}%`;
-    fill.classList.toggle("is-over", fence > FENCE);
-    fill.classList.toggle("is-exact", fence === FENCE);
-    $("g-fence-note").textContent = fence === FENCE ? "✓ All 24 m used" : fence > FENCE ? `${fence - FENCE} m too much` : `${FENCE - fence} m of fence left`;
-    drawBoard();
+  function renderStack(): void {
+    const used = fenceUsed();
+    const left = FENCE - used;
+    $("g-planks").querySelectorAll("i").forEach((plank, i) => plank.classList.toggle("is-used", i >= Math.max(0, left)));
+    $("g-stack").classList.toggle("is-over", left < 0);
+    $("g-stack").classList.toggle("is-exact", left === 0);
+    $("g-stack-text").innerHTML = left > 0 ? `<b>${left} m</b> of fence left` : left === 0 ? "<b>All 24 m</b> used" : `<b>${-left} m</b> too much`;
   }
   function changed(): void {
     $("g-verdict").hidden = true;
-    $("g-slot").hidden = true;
-    renderShape();
+    $("g-seeds-left").hidden = true;
+    renderStack();
     scene?.updateGarden(length, width, false);
+    if (building) buildPrompt();
+  }
+  function steppers(): HTMLElement {
+    const box = document.createElement("div");
+    box.className = "g-steppers";
+    for (const [axis, label] of [["l", "Length"], ["w", "Width"]] as const) {
+      const row = document.createElement("span");
+      row.innerHTML = `${label} <button type="button" data-d="-1" aria-label="${label} smaller">−</button><b>${axis === "l" ? length : width} m</b><button type="button" data-d="1" aria-label="${label} bigger">+</button>`;
+      row.querySelectorAll<HTMLButtonElement>("button").forEach((b) => b.addEventListener("click", () => {
+        const v = Math.max(1, Math.min(11, (axis === "l" ? length : width) + Number(b.dataset.d)));
+        if (axis === "l") length = v; else width = v;
+        prompt = "";
+        changed();
+      }));
+      box.append(row);
+    }
+    return box;
+  }
+  function buildPrompt(): void {
+    const fence = fenceUsed();
+    const state = fence > FENCE ? "over" : fence < FENCE ? "short" : tried(length, width) ? "tried" : "ready";
+    const id = `${state}:${state === "ready" || state === "tried" ? key(length, width) : ""}:${canDrag() ? "" : `${length}x${width}`}`;
+    if (id === prompt) return;
+    prompt = id;
+    const extra = canDrag() ? undefined : steppers();
+    if (state === "over") say(`That needs ${fence} m. I only have <b>24 m</b>!`, [], extra);
+    else if (state === "short") say(found36 ? "Find a shape with <b>more than 36</b>. Use all 24 m." : plans.length ? "Try a new shape. Use all <b>24 m</b>." : "I have <b>24 m</b> of fence. Drag the corners to use all of it.", [], extra);
+    else if (state === "tried") say(`You tried ${length} × ${width}. Try a new shape.`, [], extra);
+    else askSeeds("All 24 m used! <b>How many seeds</b> should I plant?", extra);
+  }
+  function askSeeds(text: string, extra?: HTMLElement): void {
+    const form = document.createElement("form");
+    form.className = "g-ask";
+    form.innerHTML = `<input type="number" inputmode="numeric" min="1" max="121" placeholder="?" aria-label="Number of seeds"><button type="submit">Plant</button>`;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = form.querySelector("input")!;
+      const seeds = Number(input.value);
+      if (!input.value || !Number.isInteger(seeds) || seeds < 1 || seeds > 121) { input.focus(); return; }
+      plant(seeds);
+    });
+    say(text, [], form);
+    if (extra) $("g-replies").prepend(extra);
+    if (window.matchMedia("(pointer: fine)").matches) form.querySelector("input")!.focus({ preventScroll: true });
   }
 
-  function plant(): void {
-    if (busy) return;
-    const fence = fenceUsed();
-    if (fence !== FENCE) {
-      say(fence > FENCE ? `That needs ${fence} m of fence. I only have 24 m!` : `You still have ${FENCE - fence} m of fence left. Use all 24 m.`);
-      return;
-    }
-    const value = $<HTMLInputElement>("g-seeds").value;
-    const seeds = Number(value);
-    if (!value || !Number.isInteger(seeds) || seeds < 1 || seeds > 121) {
-      say("How many seeds? Type a number first.");
-      $("g-seeds").focus({ preventScroll: true });
-      return;
-    }
+  /* ---------- Plant ---------- */
+  function plant(seeds: number): void {
     const area = length * width;
     lock();
-    $("g-verdict").hidden = true;
-    const slot = $("g-slot");
-    const count = $("g-slot-n");
-    slot.hidden = false;
-    slot.classList.remove("is-empty", "is-exact");
-    count.textContent = String(seeds);
     $("g-bubble").hidden = true;
-    scene?.plantSeeds(seeds, (planted) => {
-      count.textContent = String(seeds - planted);
-      slot.classList.remove("tick");
-      void slot.offsetWidth;
-      slot.classList.add("tick");
-      if (seeds - planted === 0) slot.classList.add("is-empty");
+    $("g-verdict").hidden = true;
+    const pill = $("g-seeds-left");
+    pill.hidden = false;
+    pill.classList.remove("is-empty", "is-exact");
+    $("g-seed-n").textContent = String(seeds);
+    if (!scene) { finish(seeds, Math.min(seeds, area), area); return; }
+    scene.plantSeeds(seeds, (planted) => {
+      $("g-seed-n").textContent = String(seeds - planted);
+      pill.classList.remove("tick");
+      void pill.offsetWidth;
+      pill.classList.add("tick");
     }, (planted) => finish(seeds, planted, area));
   }
-
   function verdict(ok: boolean, text: string): void {
     $("g-mark").textContent = ok ? "✓" : "✗";
-    $("g-verdict").classList.toggle("is-ok", ok);
-    $("g-verdict-text").innerHTML = text;
     const v = $("g-verdict");
+    v.classList.toggle("is-ok", ok);
+    $("g-verdict-text").innerHTML = text;
     v.hidden = false;
     v.classList.remove("pop");
     void v.offsetWidth;
     v.classList.add("pop");
   }
-
   function finish(seeds: number, planted: number, area: number): void {
-    if (seeds < area) {
-      verdict(false, `Out of seeds!<br><b>${area - planted} squares</b> are still empty.`);
-      say(`We ran out! It's more than ${seeds}. Count the squares again.`);
-      unlock();
+    if (destroyed) return;
+    const pill = $("g-seeds-left");
+    if (seeds !== area) {
+      pill.classList.add("is-empty");
+      verdict(false, seeds < area ? `Out of seeds! <b>${area - planted}</b> squares are empty.` : `<b>${seeds - area}</b> seeds left over.`);
+      building = true;
+      scene?.setInteractive(true, (l, w) => { if (l === length && w === width) return; length = l; width = w; changed(); });
+      prompt = `retry:${key(length, width)}`;
+      askSeeds(seeds < area ? `We ran out! It's more than ${seeds}. Count again.` : `Too many! It's not ${seeds}. Count again.`);
       return;
     }
-    if (seeds > area) {
-      verdict(false, `The garden is full,<br>but <b>${seeds - area} seeds</b> are left over.`);
-      say(`Too many seeds! It's not ${seeds}. Count the squares again.`);
-      unlock();
-      return;
-    }
-    $("g-slot").classList.replace("is-empty", "is-exact");
-    verdict(true, `Exactly right!<br><b>${length} × ${width} = ${area}</b> plants`);
-    const plan: GardenPlan = { id: Date.now(), length, width, fence: FENCE, area, prediction: seeds, correctPrediction: true, validFence: true, ink: structuredClone(ink) };
-    plans.push(plan);
-    renderSaved();
-    window.setTimeout(() => next(plan), 1700);
+    pill.classList.add("is-exact");
+    verdict(true, `<b>${length} × ${width} = ${area}</b> plants`);
+    plans.push({ id: Date.now(), length, width, fence: FENCE, area, prediction: seeds, correctPrediction: true, validFence: true, ink: [] });
+    updateGardenState({ plans: [...plans] });
+    window.setTimeout(() => next(plans[plans.length - 1]!), 1600);
   }
 
+  /* ---------- Guide: one question, then the extreme ---------- */
+  const again = (): void => { $("g-verdict").hidden = true; $("g-seeds-left").hidden = true; unlock(); };
   function next(plan: GardenPlan): void {
     if (destroyed) return;
+    $("g-verdict").hidden = true;
+    $("g-seeds-left").hidden = true;
     const best = Math.max(...plans.slice(0, -1).map((p) => p.area), 0);
-    if (plan.area === 36) { explainMaximum(); return; }
-    const message = plan.area > best
-      ? `${plan.area} plants! Can you grow even more with the <b>same 24 m</b>? Try making the two sides closer in length.`
-      : `That's ${plan.area} plants. Your best garden grew ${best}. Try making the two sides closer in length, keeping the <b>same 24 m</b>.`;
-    say(message, [{ label: "Try another shape", then: () => {
-        setStep("more");
-        $("g-plan").textContent = `Plan ${String.fromCharCode(65 + plans.length)}`;
-        $<HTMLInputElement>("g-seeds").value = "";
-        $("g-verdict").hidden = true;
-        $("g-slot").hidden = true;
-        unlock();
-        say("Change the shape. Keep all 24 m of fence.");
-      } }]);
+    if (found36) {
+      beatTries += 1;
+      if (beatTries >= 2) { end(plan.area); return; }
+      say(`${plan.area} plants. Still not more than 36.`, [{ label: "Try again", then: again }]);
+      return;
+    }
+    if (plan.area === 36) {
+      found36 = true;
+      say("<b>36 plants!</b> Can you beat 36?", [{ label: "I'll try", then: again }]);
+      return;
+    }
+    if (plans.length === 1) {
+      say(`<b>${plan.area} plants!</b> Can we grow more with the same 24 m?`, [{ label: "Try another shape", then: again }]);
+      return;
+    }
+    if (!askedWhy) {
+      askedWhy = true;
+      const prev = plans[plans.length - 2]!;
+      const [big, small] = plan.area > prev.area ? [plan, prev] : [prev, plan];
+      const name = (p: GardenPlan): string => `${p.length} × ${p.width}`;
+      const more = (): void => say("Yes! Closer sides, more plants. Can you grow even more?", [{ label: "Let's try", then: again }]);
+      say(`${name(small)} grew ${small.area}. ${name(big)} grew ${big.area}. Why did ${name(big)} grow more?`, [
+        { label: "It has more fence", then: () => say(`Both use 24 m. Look at the sides: ${big.length} and ${big.width}, ${small.length} and ${small.width}.`, [{ label: "Its sides are closer!", then: more }]) },
+        { label: "Its sides are closer", then: more },
+      ]);
+      return;
+    }
+    say(plan.area > best ? `<b>${plan.area} plants!</b> Your best yet. Can you grow more?` : `${plan.area} plants. Your best is ${best}. Keep going!`, [{ label: "Try again", then: again }]);
   }
-
-  function explainMaximum(): void {
-    updateGardenState({ phase: "compare", plans: [...plans] });
-    $("g-verdict").hidden = true;
-    $("g-slot").hidden = true;
-    $("g-notebook").hidden = true;
-    say("<b>6 × 6 = 36 plants!</b> All these rectangles use 24 m of fence: <b>3 × 9 = 27</b>, <b>4 × 8 = 32</b>, <b>5 × 7 = 35</b>, <b>6 × 6 = 36</b>. What happens as the sides get closer?", [
-      { label: "The area gets bigger", then: transfer },
-      { label: "The area stays the same", then: () => say("The fence stays the same, but the plants increase: 27, 32, 35, 36. Equal sides give the most space inside.", [{ label: "Try a new fence", then: transfer }]) },
-    ]);
-  }
-
-  function transfer(): void {
-    updateGardenState({ phase: "transfer" });
-    say("The fence is fixed, so <b>length + width = 12</b>. Moving 1 m away from equal sides gives <b>5 × 7 = 35</b>; moving 2 m away gives <b>4 × 8 = 32</b>. Now imagine <b>20 m of fence</b>. Which rectangle holds the most plants?", [
-      { label: "4 m × 6 m", then: () => say("That uses 20 m of fence and holds 24 plants. Can you make the sides equal and fit more?", [{ label: "Try again", then: transfer }]) },
-      { label: "5 m × 5 m", then: () => { updateGardenState({ transferPassed: true }); complete(); } },
-      { label: "6 m × 6 m", then: () => say("That holds 36 plants, but needs 24 m of fence. With 20 m, the two side lengths must add to 10.", [{ label: "Try again", then: transfer }]) },
-    ]);
-  }
-
-  function complete(): void {
-    setStep("done");
-    updateGardenState({ phase: "complete", plans: [...plans] });
+  function end(area: number): void {
+    setPhase("done");
+    updateGardenState({ phase: "complete", plans: [...plans], transferPassed: false });
     lock();
-    $("g-panel").hidden = true;
-    $("g-notebook").hidden = true;
-    $("g-slot").hidden = true;
-    $("g-verdict").hidden = true;
+    $("g-stack").hidden = true;
+    length = 6;
+    width = 6;
+    scene?.updateGarden(6, 6, true);
     scene?.setStage("complete");
-    const lines = plans.slice(-2).map((p, i) => `Plan ${String.fromCharCode(65 + plans.length - Math.min(2, plans.length) + i)}: ${p.length} × ${p.width} = <b>${p.area} plants</b>`).join(" &nbsp;·&nbsp; ");
-    $("g-done-text").innerHTML = `${lines}<br><b>With 24 m of fence, 6 × 6 gives the greatest area: 36 m².</b><br>With 20 m, 5 × 5 gives 25 m². When two positive numbers have a fixed sum, their product is greatest when they are equal.`;
-    $("g-done").hidden = false;
-    say("Yes! 5 × 5 = 25 plants with 20 m of fence. Equal sides give the greatest area for a rectangle with a fixed perimeter. You used the idea with a new fence!");
-    requestAnimationFrame(() => ScrollTrigger.refresh());
+    say(`${area} plants. You can't beat 36! Same fence: <b>equal sides grow the most</b>.`, [{ label: "Next →", then: openPad }]);
   }
 
-  function renderSaved(): void {
-    $("g-saved").innerHTML = plans.map((p, i) => `<li><b>Plan ${String.fromCharCode(65 + i)}</b> ${p.length} × ${p.width} m <em>${p.area} plants ✓</em></li>`).join("");
+  /* ---------- Notepad: a TSA-style question ---------- */
+  function openPad(): void {
+    $("g-bubble").hidden = true;
+    $("g-pad").hidden = false;
+    $<HTMLInputElement>("g-answer").value = "";
+    $("g-result").textContent = "";
+    $("g-result").className = "g-pad__result";
+    lastAnswer = null;
+    requestAnimationFrame(() => { drawBoard(); ScrollTrigger.refresh(); });
   }
+  on($("g-answer-form"), "submit", (e) => {
+    e.preventDefault();
+    const raw = $<HTMLInputElement>("g-answer").value;
+    if (!raw) { $("g-answer").focus(); return; }
+    lastAnswer = Number(raw);
+    const ok = lastAnswer === 48;
+    const result = $("g-result");
+    result.className = `g-pad__result ${ok ? "is-ok" : "is-wrong"}`;
+    result.innerHTML = ok ? "✓ Correct! 8 × 6 = <b>48 cm²</b>" : lastAnswer in REAL_CASES ? "✗ Not quite. Real students wrote this too. See why below." : "✗ Not quite. Try again.";
+  });
+  on($("g-real"), "click", () => {
+    const index = lastAnswer !== null ? REAL_CASES[lastAnswer] : undefined;
+    if (index !== undefined) window.dispatchEvent(new CustomEvent("knowledge:case", { detail: { index } }));
+  });
 
   function restart(): void {
     plans.length = 0;
-    updateGardenState({ phase: "build", plans: [], activePlan: null, transferPassed: false });
-    renderSaved();
-    length = 8;
-    width = 3;
+    found36 = false;
+    askedWhy = false;
+    beatTries = 0;
     ink = [];
     history.length = 0;
-    $<HTMLInputElement>("g-seeds").value = "";
-    $("g-plan").textContent = "Plan A";
-    $("g-done").hidden = true;
-    changed();
-    build();
+    drawInk();
+    $("g-pad").hidden = true;
+    updateGardenState({ phase: "build", plans: [], activePlan: null, transferPassed: false });
+    task();
   }
 
-  /* ---------- Notebook ---------- */
+  /* ---------- Notepad drawing ---------- */
   function svgEl(tag: string, attrs: Record<string, string | number>, parent: Element): SVGElement {
     const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
     for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
@@ -327,21 +344,18 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   }
   function drawInk(): void {
     inkLayer.replaceChildren();
-    ink.forEach((points) => svgEl("polyline", { points: points.map(([x, y]) => `${x * boardWidth},${y * 320}`).join(" "), class: "g-stroke" }, inkLayer));
+    ink.forEach((points) => svgEl("polyline", { points: points.map(([x, y]) => `${x * boardWidth},${y * boardHeight}`).join(" "), class: "g-stroke" }, inkLayer));
   }
   function drawBoard(): void {
     const w = board.parentElement?.clientWidth ?? 0;
     if (w > 0) boardWidth = w;
-    const unit = Math.min(26, (boardWidth - 80) / 11);
-    board.setAttribute("viewBox", `0 0 ${boardWidth} 320`);
-    const pattern = root.querySelector("#g-grid")!;
-    for (const [k, v] of Object.entries({ width: unit, height: unit, x: 40, y: 30 })) pattern.setAttribute(k, String(v));
-    root.querySelector("#g-grid-path")!.setAttribute("d", `M${unit} 0H0V${unit}`);
+    board.setAttribute("viewBox", `0 0 ${boardWidth} ${boardHeight}`);
     geo.replaceChildren();
-    const x = 40, y = 30, gw = length * unit, gh = width * unit;
+    const x = 40, y = 40, gw = 160, gh = 120;
     svgEl("rect", { x, y, width: gw, height: gh, class: "g-board-plot" }, geo);
-    svgEl("text", { x: x + gw / 2, y: y - 10, "text-anchor": "middle" }, geo).textContent = `${length} m`;
-    svgEl("text", { x: x + gw + 10, y: y + gh / 2 + 4 }, geo).textContent = `${width} m`;
+    svgEl("text", { x: x + gw / 2, y: y - 12, "text-anchor": "middle" }, geo).textContent = "8 cm";
+    svgEl("text", { x: x + gw + 10, y: y + gh / 2 + 5 }, geo).textContent = "6 cm";
+    svgEl("text", { x, y: y + gh + 26, class: "g-board-note" }, geo).textContent = "Not drawn to scale";
     drawInk();
   }
   function point(e: PointerEvent): [number, number] {
@@ -358,10 +372,10 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     board.setPointerCapture(e.pointerId);
     const [x, y] = point(e);
     if (tool === "pen") {
-      stroke = [[x / boardWidth, y / 320]];
+      stroke = [[x / boardWidth, y / boardHeight]];
       ink.push(stroke);
     } else {
-      const hit = ink.findIndex((pts) => pts.some(([px, py]) => Math.hypot(px * boardWidth - x, py * 320 - y) < 18));
+      const hit = ink.findIndex((pts) => pts.some(([px, py]) => Math.hypot(px * boardWidth - x, py * boardHeight - y) < 18));
       if (hit >= 0) ink.splice(hit, 1);
     }
     drawInk();
@@ -369,7 +383,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   on(board, "pointermove", (event) => {
     if (!stroke) return;
     const [x, y] = point(event as PointerEvent);
-    if (stroke.length < 1200) stroke.push([x / boardWidth, y / 320]);
+    if (stroke.length < 1200) stroke.push([x / boardWidth, y / boardHeight]);
     drawInk();
   });
   const endStroke = (): void => { stroke = null; };
@@ -380,18 +394,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     root.querySelectorAll("[data-tool]").forEach((el) => el.setAttribute("aria-pressed", String(el === b)));
   }));
   on($("g-undo"), "click", () => { const last = history.pop(); if (last) { ink = last; drawInk(); } });
-  on($("g-notebook"), "toggle", () => requestAnimationFrame(drawBoard));
 
   /* ---------- Wiring ---------- */
-  for (const [id, key] of [["g-len", "length"], ["g-wid", "width"]] as const) {
-    on($(id), "input", () => {
-      const v = Number($<HTMLInputElement>(id).value);
-      if (key === "length") length = v; else width = v;
-      changed();
-    });
-  }
-  on($("g-seeds"), "keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") plant(); });
-  on($("g-plant"), "click", plant);
   on($("g-restart"), "click", restart);
   on($("g-full"), "click", () => {
     if (document.fullscreenElement === root) void document.exitFullscreen().catch(() => undefined);
@@ -414,12 +418,11 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     intro();
   }, { threshold: 0.45 });
   seenObserver.observe(world);
-  const resize = new ResizeObserver(() => { drawBoard(); placeBubble(); });
+  const resize = new ResizeObserver(() => { if (!$("g-pad").hidden) drawBoard(); placeBubble(); });
   resize.observe(world);
 
-  setStep("meet");
-  renderShape();
-  for (const id of ["g-len", "g-wid", "g-seeds", "g-plant"]) $<HTMLInputElement>(id).disabled = true;
+  setPhase("meet");
+  renderStack();
 
   void import("./rooftop").then(({ mountRooftop }) => {
     if (destroyed) return;
@@ -433,7 +436,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     $("rooftop-scene").innerHTML = '<img class="rooftop-poster" src="/img/rooftop-low-poly.webp" alt="Mei\'s rooftop garden">';
     seen = true;
     started = true;
-    say("Hi! I'm Auntie Mei. Can you help me with my rooftop garden?", [{ label: "Sure! What do you need?", then: rules }]);
+    say("Hi! I'm Auntie Mei. Can you help with my garden?", [{ label: "Sure!", then: check }]);
   });
 
   return {
