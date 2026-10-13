@@ -222,7 +222,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       return;
     }
     const goal = found36 ? " More than 36, remember." : "";
-    askSeeds(`All 24 m used! <b>How many seeds</b> should I plant?${goal}`, extra);
+    askSeeds(`Nice! <b>${length} m</b> long and <b>${width} m</b> wide is 24 m around. <b>How many plants</b> can I plant?${goal}`, extra);
   }
   function askSeeds(text: string, extra?: HTMLElement): void {
     const form = document.createElement("form");
@@ -276,7 +276,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       verdict(false, seeds < area ? `Out of seeds! <b>${area - planted}</b> squares are empty.` : `<b>${seeds - area}</b> seeds left over.`);
       building = true;
       scene?.setInteractive(true, (l, w) => { if (l === length && w === width) return; length = l; width = w; changed(); });
-      askSeeds(seeds < area ? `We ran out! It's more than ${seeds}. Count again.` : `Too many! It's not ${seeds}. Count again.`);
+      const lead = seeds < area ? `We ran out! It's more than ${seeds}.` : `Too many! It's not ${seeds}.`;
+      askSeeds(`${lead} Count the squares: one plant fits in each.`);
       return;
     }
     pill.classList.add("is-exact");

@@ -765,8 +765,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     box(garden, "#bca37a", 0, 0.065, 0, lx + 0.22, 0.13, wz + 0.22);
     box(garden, "#826344", 0, 0.145, 0, lx, 0.1, wz);
     // Small inset grid markers: one plot cell represents one square metre.
-    for (let column = 0; column <= safeLength; column += 1) box(garden, "#967754", -lx / 2 + column * unit, 0.202, 0, 0.018, 0.012, wz);
-    for (let row = 0; row <= safeWidth; row += 1) box(garden, "#967754", 0, 0.202, -wz / 2 + row * unit, lx, 0.012, 0.018);
+    for (let column = 0; column <= safeLength; column += 1) box(garden, "#b0916a", -lx / 2 + column * unit, 0.202, 0, 0.032, 0.014, wz);
+    for (let row = 0; row <= safeWidth; row += 1) box(garden, "#b0916a", 0, 0.202, -wz / 2 + row * unit, lx, 0.014, 0.032);
     const fence = "#d9bb83";
     const post = (x: number, z: number): void => {
       box(garden, fence, x, 0.37, z, 0.06, 0.46, 0.06);
