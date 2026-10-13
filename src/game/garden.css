@@ -39,6 +39,8 @@
 .g-planks{--pw:30px;--ph:9px;display:flex;flex-wrap:wrap-reverse;gap:3px;width:calc(var(--pw)*4 + 9px)}
 .g-planks i{width:var(--pw);height:var(--ph);border-radius:2px;background:linear-gradient(#e6bd76,#c8924a);box-shadow:inset 0 -2px 0 #9c6a33;transition:opacity .25s,transform .25s}
 .g-planks i.is-used{background:none;box-shadow:inset 0 0 0 1px #d8cdb6;opacity:.7}
+.g-stack.is-3d{padding:.45rem .8rem;border-radius:99px}
+.g-stack.is-3d .g-planks{display:none}
 .g-stack p{margin:0;font-size:.82rem;color:var(--ink-soft)}
 .g-stack p b{color:var(--ink)}
 .g-stack.is-exact p b{color:#2e8b57}

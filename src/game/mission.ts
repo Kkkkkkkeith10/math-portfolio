@@ -146,7 +146,9 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function renderStack(): void {
     const used = fenceUsed();
     const left = FENCE - used;
+    scene?.setFenceLeft(Math.max(0, left));
     $("g-planks").querySelectorAll("i").forEach((plank, i) => plank.classList.toggle("is-used", i >= Math.max(0, left)));
+    $("g-stack").classList.toggle("is-3d", canDrag());
     $("g-stack").classList.toggle("is-over", left < 0);
     $("g-stack").classList.toggle("is-exact", left === 0);
     $("g-stack-text").innerHTML = left > 0 ? `<b>${left} m</b> of fence left` : left === 0 ? "<b>All 24 m</b> used" : `<b>${-left} m</b> too much`;
@@ -428,6 +430,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     if (destroyed) return;
     scene = mountRooftop($("rooftop-scene"));
     scene.updateGarden(length, width, false);
+    scene.setFenceLeft(FENCE - fenceUsed());
     scene.setStage("meet");
     scene.onMeiMove((x, y) => { meiX = x; meiY = y; placeBubble(); });
     intro();

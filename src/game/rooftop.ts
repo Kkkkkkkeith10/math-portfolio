@@ -4,6 +4,8 @@ export interface RooftopHandle {
   updateGarden(length: number, width: number, harvest: boolean): void;
   setStage(stage: "meet" | "build" | "compare" | "transfer" | "complete"): void;
   setInteractive(enabled: boolean, onResize?: (length: number, width: number) => void): void;
+  /** The plank pile beside the workbench shows one plank per metre of fence still unused. */
+  setFenceLeft(metres: number): void;
   /** Mei walks from the hut to the garden. */
   walkIn(onDone?: () => void): void;
   /** A small hop, used when Mei starts a new line. */
@@ -40,6 +42,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       updateGarden: (length, width) => { squares = length * width; },
       setStage: () => undefined,
       setInteractive: () => undefined,
+      setFenceLeft: () => undefined,
       walkIn: (onDone) => onDone?.(),
       hop: () => undefined,
       plantSeeds: (seeds, onPlant, onDone) => { const n = Math.min(seeds, squares); onPlant(n); onDone(n); },
@@ -291,6 +294,26 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   cylinder(model, "#dc9c79", -6.14, roofY + 0.83, -1.66, 0.16, 0.12, 0.24, 7);
   const sack = rock(model, "#d7bb84", -6.42, roofY + 0.28, -0.51, 0.35);
   sack.scale.set(0.37, 0.45, 0.29);
+
+  // Mei's fence supply: 24 one-metre planks, criss-crossed in layers of three.
+  const pile = new THREE.Group();
+  pile.position.set(-6.45, roofY, 0.55);
+  pile.rotation.y = 0.12;
+  model.add(pile);
+  for (const z of [-0.36, 0.36]) box(pile, "#8b6a45", 0, 0.04, z, 1.1, 0.08, 0.14);
+  const planks: THREE.Group[] = [];
+  for (let i = 0; i < 24; i += 1) {
+    const layer = Math.floor(i / 3);
+    const offset = (i % 3 - 1) * 0.27;
+    const along = layer % 2 === 0;
+    const group = new THREE.Group();
+    group.position.set(along ? 0 : offset, 0.13 + layer * 0.1, along ? offset : 0);
+    group.userData.y = group.position.y;
+    pile.add(group);
+    box(group, (i + layer) % 3 === 0 ? "#d7a666" : (i + layer) % 3 === 1 ? "#c8924a" : "#deb377", 0, 0, 0, along ? 1.05 : 0.23, 0.09, along ? 0.23 : 1.05);
+    planks.push(group);
+  }
+  let fenceLeft = 24;
 
   // Cloth bunting; gently sagging geometry, without a perpetual animation loop.
   const stringPoints: THREE.Vector3[] = [];
@@ -670,6 +693,35 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       return true;
     });
   }
+  function setFenceLeft(metres: number): void {
+    const target = Math.max(0, Math.min(planks.length, Math.round(metres)));
+    if (destroyed || target === fenceLeft) return;
+    fenceLeft = target;
+    planks.forEach((group, i) => {
+      const show = i < target;
+      if (show === (group.userData.shown ?? true)) return;
+      group.userData.shown = show;
+      const token = (group.userData.token = ((group.userData.token as number | undefined) ?? 0) + 1);
+      const y = group.userData.y as number;
+      if (reducedMotion.matches) { group.visible = show; return; }
+      group.visible = true;
+      let t0 = 0;
+      run((now) => {
+        if (group.userData.token !== token) return true;
+        if (!t0) t0 = now;
+        const p = Math.min(1, (now - t0) / 280);
+        group.scale.setScalar(Math.max(0.01, show ? backOut(p) : 1 - p));
+        group.position.y = show ? y : y + p * 0.6;
+        if (p < 1) return false;
+        group.visible = show;
+        group.scale.setScalar(1);
+        group.position.y = y;
+        return true;
+      });
+    });
+    render();
+  }
+
   function resize(): void {
     if (destroyed) return;
     const bounds = host.getBoundingClientRect();
@@ -681,10 +733,12 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const frameWidth = currentStage === "meet" ? 12.8 : 10.6;
     const frameHeight = currentStage === "meet" ? 9.2 : 7.3;
     const halfHeight = Math.max(frameHeight / 2, frameWidth / (2 * aspect));
+    // On tall phone screens Mei's bubble sits along the bottom, so lift the garden into the upper part.
+    const lift = aspect < 0.9 && currentStage !== "meet" ? halfHeight * 0.32 : 0;
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
-    camera.top = halfHeight;
-    camera.bottom = -halfHeight;
+    camera.top = halfHeight - lift;
+    camera.bottom = -halfHeight - lift;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     render();
@@ -770,6 +824,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     walkIn,
     hop,
     plantSeeds,
+    setFenceLeft,
     onMeiMove(listener) {
       meiListener = listener;
       render();
