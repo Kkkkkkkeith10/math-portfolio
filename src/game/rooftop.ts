@@ -636,9 +636,13 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
   function overHandle(event: PointerEvent): boolean {
     if (!draw) return false;
-    pointRay(event);
-    const hits = raycaster.intersectObject(hit, false);
-    return hits.length > 0;
+    const p = knob.getWorldPosition(new THREE.Vector3()).project(camera);
+    const bounds = canvas.getBoundingClientRect();
+    const x = bounds.left + (p.x + 1) / 2 * bounds.width;
+    const y = bounds.top + (1 - p.y) / 2 * bounds.height;
+    // Fingers need a bigger target than the drawn handle, especially when the phone camera is zoomed out.
+    const reach = event.pointerType === "mouse" ? 26 : 44;
+    return Math.hypot(event.clientX - x, event.clientY - y) <= reach;
   }
   function onPointerDown(event: PointerEvent): void {
     if (!draw || event.button !== 0) return;
@@ -687,6 +691,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const { length, width, onComplete } = draw;
     draw = null;
     controls.visible = false;
+    canvas.style.pointerEvents = "none";
     drawLengthLabel.style.display = "none";
     drawWidthLabel.style.display = "none";
     onComplete(length, width);
@@ -915,6 +920,12 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       farmDims[i] = { length: 0, width: 0 };
       farmDim[i]!.visible = false;
     }
+    draw = null;
+    drag = null;
+    controls.visible = false;
+    canvas.style.pointerEvents = "none";
+    drawLengthLabel.style.display = "none";
+    drawWidthLabel.style.display = "none";
     render();
   }
 
@@ -922,6 +933,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     farmDims[index] = { length: 1, width: 0 };
     draw = { farm: index, phase: "length", length: 1, width: 0, onChange, onComplete: (length, width) => { farmDims[index] = { length, width }; onComplete(length, width); } };
     controls.visible = true;
+    canvas.style.pointerEvents = "auto";
     renderDrawPreview();
   }
 
