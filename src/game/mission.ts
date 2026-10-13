@@ -51,6 +51,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   let length = 3;
   let width = 2;
   let building = false;
+  let awaitingDrag = false;
   let found36 = false;
   let askedWhy = false;
   let beatTries = 0;
@@ -173,7 +174,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     if (labels[0]) labels[0].textContent = `${length} m`;
     if (labels[1]) labels[1].textContent = `${width} m`;
     // The seed question belongs to one shape. Resizing means they check the fence again.
-    if (building && $("g-replies").querySelector(".g-ask")) hold();
+    if ($("g-replies").querySelector(".g-ask")) hold();
+    if (awaitingDrag) showOk();
   }
   function steppers(): HTMLElement {
     const box = document.createElement("div");
@@ -190,20 +192,34 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     }
     return box;
   }
-  /** Mei stays quiet while the garden changes. She only speaks when the student taps OK. */
+  /** Mei stays quiet while the garden changes. OK appears only after the student drags. */
   function hold(): void {
-    const line = found36 ? "Make a garden with more than 36, then tap OK." : plans.length ? "Try a new shape, then tap OK." : "Drag the corners, then tap OK.";
-    say(line, [{ label: "OK", then: checkFence }], canDrag() ? undefined : steppers());
+    awaitingDrag = true;
+    const line = found36 ? "Make a garden with more than 36." : plans.length ? "Try a new shape." : "Drag the corners.";
+    say(line, [], canDrag() ? undefined : steppers());
+  }
+  function showOk(): void {
+    awaitingDrag = false;
+    const box = $("g-replies");
+    if (box.querySelector("[data-ok]")) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.ok = "";
+    button.textContent = "OK";
+    button.addEventListener("click", checkFence, { once: true });
+    box.append(button);
   }
   function checkFence(): void {
     const fence = fenceUsed();
     const extra = canDrag() ? undefined : steppers();
     if (fence !== FENCE) {
-      say(fence > FENCE ? `That's <b>${fence} m</b>. I only have 24!` : `That's <b>${fence} m</b>. ${FENCE - fence} m of fence is left.`, [{ label: "OK", then: checkFence }], extra);
+      awaitingDrag = true;
+      say(fence > FENCE ? `That's <b>${fence} m</b>. I only have 24!` : `That's <b>${fence} m</b>. ${FENCE - fence} m of fence is left.`, [], extra);
       return;
     }
     if (tried(length, width)) {
-      say(`You tried ${length} × ${width}. Try a new shape.`, [{ label: "OK", then: checkFence }], extra);
+      awaitingDrag = true;
+      say(`You tried ${length} × ${width}. Try a new shape.`, [], extra);
       return;
     }
     const goal = found36 ? " More than 36, remember." : "";
