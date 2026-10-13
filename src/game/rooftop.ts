@@ -670,12 +670,13 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     renderDrawPreview();
   }
   function finishDrag(): void {
+    const wasDragging = drag !== null;
     const pointerId = drag?.pointerId;
     drag = null;
     if (pointerId !== undefined && canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
     canvas.style.cursor = draw ? "grab" : "default";
     host.classList.remove("rooftop-dragging");
-    if (!draw) return;
+    if (!draw || !wasDragging) return;
     if (draw.phase === "length") {
       draw.phase = "width";
       draw.width = 1;
@@ -960,9 +961,11 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const height = Math.max(1, Math.round(bounds.height || 400));
     const aspect = width / height;
     const frameWidth = currentStage === "meet" ? 12.8 : currentStage === "build" || currentStage === "compare" ? 15.8 : 10.6;
-    const frameHeight = currentStage === "meet" ? 9.2 : currentStage === "build" || currentStage === "compare" ? 8.6 : 7.3;
+    const frameHeight = currentStage === "meet" ? 9.2 : currentStage === "build" || currentStage === "compare" ? 9.4 : 7.3;
     const halfHeight = Math.max(frameHeight / 2, frameWidth / (2 * aspect));
-    const lift = aspect < 0.9 ? halfHeight * 0.3 : 0;
+    const building = currentStage === "build" || currentStage === "compare";
+    // While building, leave headroom above the farm row for Mei's speech bubble.
+    const lift = aspect < 0.9 ? halfHeight * (building ? 0.12 : 0.3) : building ? -halfHeight * 0.36 : 0;
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
     camera.top = halfHeight - lift;
@@ -1008,6 +1011,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     },
     setStage(stage) {
       currentStage = stage;
+      garden.visible = stage === "meet";
       if (stage !== "meet") mei.rotation.y = stage === "complete" ? -0.18 : 0.25;
       resize();
     },

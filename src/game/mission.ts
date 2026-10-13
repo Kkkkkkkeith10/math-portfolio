@@ -75,6 +75,17 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const w = world.clientWidth;
     const bw = bubble.offsetWidth;
     const bh = bubble.offsetHeight;
+    if (root.dataset.phase !== "meet") {
+      // Farms run down to the right of where Mei stands, so above her head and to the right stays clear.
+      bubble.classList.remove("is-docked", "is-below");
+      bubble.classList.add("is-right");
+      const left = Math.max(8, Math.min(w - bw - 8, meiX - 30));
+      bubble.style.left = `${left}px`;
+      bubble.style.top = `${Math.max(8, meiY - bh - 14)}px`;
+      bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
+      return;
+    }
+    bubble.classList.remove("is-right");
     if (phone.matches) {
       // Phones: the bubble comes from Mei's mouth, hangs just below her and points up at her.
       bubble.classList.remove("is-docked");

@@ -24,6 +24,7 @@
 .g-bubble.pop{animation:g-pop .35s cubic-bezier(.3,1.6,.5,1)}
 .g-bubble.is-docked{left:1.25rem;top:1.25rem;transition:none;border-radius:18px 18px 18px 4px}
 .g-bubble.is-docked::after{display:none}
+.g-bubble.is-right::after{right:auto;left:var(--tail,28px);margin-left:-9px}
 .g-ask{display:flex;gap:.45rem;width:100%}
 .g-ask input{width:6rem;text-align:center;font:650 1.3rem var(--sans);padding:.4rem .5rem;border:2px solid #cfd8c9;border-radius:10px;background:#fff;min-height:44px}
 .g-ask input:focus{outline:none;border-color:var(--teal)}
