@@ -26,8 +26,15 @@ export interface RooftopHandle {
   clearFarm(index: number): void;
   /** True while a farm can be drawn with a drag gesture (false on the no-WebGL fallback). */
   canDraw(): boolean;
-  /** Fill every square of a finished farm with a plant. */
-  growFarm(index: number, onDone: () => void): void;
+  /**
+   * Plant exactly count plants, one at a time. Squares left over get a dotted outline; plants with no
+   * square left queue up in red outside the fence.
+   */
+  growFarm(index: number, count: number, onPlant: (planted: number) => void, onDone: () => void): void;
+  /** Hide the other two farms and slide this one to the middle plot. */
+  featureFarm(index: number, onDone: () => void): void;
+  /** Show a finished farm's length and width labels, or hide them when index is null. */
+  showFarmLabels(index: number | null): void;
   /** Show a farm and its patch of roof in black and white, so it reads as finished. */
   setFarmGrey(index: number, grey: boolean): void;
   /** Glide the camera to one farm, or pull back to see all three when index is null. */
@@ -87,7 +94,9 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       settleFarm: (_index, onDone) => onDone(),
       clearFarm: () => undefined,
       canDraw: () => false,
-      growFarm: (_index, onDone) => onDone(),
+      growFarm: (_index, count, onPlant, onDone) => { onPlant(count); onDone(); },
+      featureFarm: (_index, onDone) => onDone(),
+      showFarmLabels: () => undefined,
       setFarmGrey: () => undefined,
       focusFarm: () => undefined,
       resetFarms: () => undefined,
@@ -524,8 +533,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const PAD = 3.35;
   const padCentres = [3.375, -0.125, -3.625].map((z) => new THREE.Vector3(-1.325, roofY, z));
   const padInset = (PAD - GRID * fu) / 2;
-  // Drawing starts at the plot's front-left grid corner; the grid runs +X and back (-Z) from there.
-  const drawOrigin = (index: number): THREE.Vector3 => new THREE.Vector3(padCentres[index]!.x - PAD / 2 + padInset, roofY + 0.015, padCentres[index]!.z + PAD / 2 - padInset);
+  // Drawing starts at the plot's back-left grid corner (the top corner on screen); the grid runs +X and forward (+Z).
+  const drawOrigin = (index: number): THREE.Vector3 => new THREE.Vector3(padCentres[index]!.x - PAD / 2 + padInset, roofY + 0.015, padCentres[index]!.z - PAD / 2 + padInset);
   const farmGroups = padCentres.map((_c, i) => { const g = new THREE.Group(); g.position.copy(drawOrigin(i)); g.visible = false; model.add(g); return g; });
   const farmPads = padCentres.map((centre) => {
     const pad = new THREE.Group();
@@ -563,8 +572,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     }
   }
 
-  /** The four grid directions, in metres: +X, back (-Z), -X, front (+Z). Opposite directions are two apart. */
-  const sideDirs = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1)];
+  /** The four grid directions, in metres: +X, front (+Z), -X, back (-Z). Opposite directions are two apart. */
+  const sideDirs = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, -1)];
   interface Side { dir: number; len: number }
   /** End of a path of sides, in metres from the drawing origin. */
   function tipOf(sides: readonly Side[], count = sides.length): THREE.Vector3 {
@@ -574,7 +583,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
   /** How many metres the grid allows in a direction from a point. */
   function room(from: THREE.Vector3, dir: number): number {
-    const r = dir === 0 ? GRID - from.x : dir === 2 ? from.x : dir === 1 ? GRID + from.z : -from.z;
+    const r = dir === 0 ? GRID - from.x : dir === 2 ? from.x : dir === 1 ? GRID - from.z : from.z;
     return Math.max(0, Math.round(r));
   }
   /** Every one-metre piece of a path, in path order, in world units. */
@@ -629,7 +638,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   function buildPlotInto(parent: THREE.Group, length: number, width: number, harvest: boolean): THREE.Group {
     parent.clear();
     const inner = new THREE.Group();
-    inner.position.set(length * fu / 2, 0, -width * fu / 2);
+    inner.position.set(length * fu / 2, 0, width * fu / 2);
     parent.add(inner);
     const lx = length * fu;
     const wz = width * fu;
@@ -637,10 +646,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     box(inner, "#826344", 0, 0.145, 0, lx, 0.1, wz);
     for (let column = 0; column <= length; column += 1) box(inner, "#b0916a", -lx / 2 + column * fu, 0.202, 0, 0.028, 0.014, wz);
     for (let row = 0; row <= width; row += 1) box(inner, "#b0916a", 0, 0.202, -wz / 2 + row * fu, lx, 0.014, 0.028);
-    fenceSide(inner, new THREE.Vector3(-lx / 2, 0, wz / 2), sideDirs[0]!, length);
-    fenceSide(inner, new THREE.Vector3(lx / 2, 0, wz / 2), sideDirs[1]!, width);
-    fenceSide(inner, new THREE.Vector3(lx / 2, 0, -wz / 2), sideDirs[2]!, length);
-    fenceSide(inner, new THREE.Vector3(-lx / 2, 0, -wz / 2), sideDirs[3]!, width);
+    fenceSide(inner, new THREE.Vector3(-lx / 2, 0, -wz / 2), sideDirs[0]!, length);
+    fenceSide(inner, new THREE.Vector3(lx / 2, 0, -wz / 2), sideDirs[1]!, width);
+    fenceSide(inner, new THREE.Vector3(lx / 2, 0, wz / 2), sideDirs[2]!, length);
+    fenceSide(inner, new THREE.Vector3(-lx / 2, 0, wz / 2), sideDirs[3]!, width);
     const crop = new THREE.Group();
     crop.position.y = 0.22;
     inner.add(crop);
@@ -690,7 +699,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   let drag: { pointerId: number } | null = null;
   const used = (state: DrawState): number => state.sides.reduce((sum, side) => sum + side.len, 0);
   const handleLocal = (state: DrawState): THREE.Vector3 => tipOf(state.sides).multiplyScalar(fu).setY(0.58);
-  const dirOf = (v: THREE.Vector3, alongX: boolean): number => alongX ? (v.x > 0 ? 0 : 2) : (v.z < 0 ? 1 : 3);
+  const dirOf = (v: THREE.Vector3, alongX: boolean): number => alongX ? (v.x > 0 ? 0 : 2) : (v.z > 0 ? 1 : 3);
 
   /**
    * Move the tip of the path towards p (in metres). Dragging along the last side lengthens or shortens it;
@@ -860,10 +869,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     canvas.style.pointerEvents = "none";
     canvas.style.cursor = "default";
     renderDrawPreview();
-    // The grid starts at a corner, so a closed four-sided path is always [0, L] × [-W, 0].
+    // The grid starts at a corner, so a closed four-sided path is always [0, L] × [0, W].
     const points = draw.sides.map((_s, i) => tipOf(draw!.sides, i + 1));
     const length = Math.round(Math.max(...points.map((p) => p.x)));
-    const width = Math.round(Math.max(...points.map((p) => -p.z)));
+    const width = Math.round(Math.max(...points.map((p) => p.z)));
     draw.options.onClose(length, width);
   }
   canvas.addEventListener("pointerdown", onPointerDown);
@@ -891,6 +900,19 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     }
     marker.style.display = draw && !draw.closed ? "grid" : "none";
     if (draw) updateHandlePosition();
+    else placeFarmLabels();
+  }
+  let labelFarm: number | null = null;
+  /** Length on the front edge, width on the right edge: the two sides facing the camera. */
+  function placeFarmLabels(): void {
+    sideLabels.forEach((label, i) => {
+      if (labelFarm === null || i > 1) { label.style.display = "none"; return; }
+      const { length, width } = farmDims[labelFarm]!;
+      const at = i === 0 ? new THREE.Vector3(length * fu / 2, 0.3, width * fu + 0.42) : new THREE.Vector3(length * fu + 0.42, 0.3, width * fu / 2);
+      placeOverlay(label, farmGroups[labelFarm]!.localToWorld(at), -6);
+      label.textContent = `${i === 0 ? length : width} m`;
+      label.style.display = "block";
+    });
   }
 
   const meiHead = new THREE.Vector3();
@@ -963,7 +985,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   function walkIn(onDone?: () => void): void { walkTo(meiEnd, onDone, 2400); }
   function walkToFarm(index: number, onDone?: () => void): void {
     // On the left of the plot, so her speech bubble can hang above her without covering the farm.
-    const spot = new THREE.Vector3(padCentres[index]!.x - PAD / 2 - 0.7, roofY, padCentres[index]!.z + 0.5);
+    const spot = new THREE.Vector3(padCentres[index]!.x - PAD / 2 - 1.1, roofY, padCentres[index]!.z + 0.8);
     spot.y = roofY;
     walkTo(spot, onDone, Math.max(900, Math.min(2200, mei.position.distanceTo(spot) * 200)));
   }
@@ -1021,45 +1043,115 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     });
   }
 
-  function growFarm(index: number, onDone: () => void): void {
+  const spareMaterial = new THREE.MeshStandardMaterial({ color: "#d4573f", roughness: 0.9, flatShading: true });
+  materials.add(spareMaterial);
+  const MAX_SPARE = 12;
+  function growFarm(index: number, count: number, onPlant: (planted: number) => void, onDone: () => void): void {
     const { length, width } = farmDims[index]!;
     const crop = buildPlotInto(farmGroups[index]!, length, width, false);
     farmCrop[index] = crop;
+    paintGrey(index);
     farmGroups[index]!.visible = true;
     const lx = length * fu;
     const wz = width * fu;
     const cells: [number, number][] = [];
     for (let row = 0; row < width; row += 1) for (let column = 0; column < length; column += 1) cells.push([-lx / 2 + (column + 0.5) * fu, -wz / 2 + (row + 0.5) * fu]);
+    crop.clear();
+    // Plants with no square left queue up in red outside the front fence, on the roof.
+    const spare = new THREE.Group();
+    spare.position.y = 0.02;
+    crop.parent!.add(spare);
+    const columns = Math.max(3, length);
+    const spots: { parent: THREE.Group; x: number; z: number; spare: boolean }[] = cells.slice(0, count).map(([x, z]) => ({ parent: crop, x, z, spare: false }));
+    for (let i = 0; i < Math.min(MAX_SPARE, count - cells.length); i += 1) {
+      spots.push({ parent: spare, x: -((columns - 1) * fu) / 2 + (i % columns) * fu, z: wz / 2 + 0.4 + Math.floor(i / columns) * fu, spare: true });
+    }
+    const place = (i: number): THREE.Group => {
+      const spot = spots[i]!;
+      const item = plant(spot.parent, spot.x, spot.z, i * 7, cropScale);
+      if (spot.spare) item.traverse((part) => { if (part instanceof THREE.Mesh) part.material = spareMaterial; });
+      return item;
+    };
+    // Squares the count didn't reach get a dotted outline.
+    const outlineEmpty = (): void => {
+      cells.slice(count).forEach(([x, z]) => {
+        const corner = new THREE.Vector3(x - fu / 2, 0.01, z - fu / 2);
+        const far = new THREE.Vector3(x + fu / 2, 0.01, z + fu / 2);
+        dashes(crop, corner, sideDirs[0]!, 1, guideMaterial, 0.01);
+        dashes(crop, corner, sideDirs[1]!, 1, guideMaterial, 0.01);
+        dashes(crop, far, sideDirs[2]!, 1, guideMaterial, 0.01);
+        dashes(crop, far, sideDirs[3]!, 1, guideMaterial, 0.01);
+      });
+    };
     const token = ++plantToken;
     if (reducedMotion.matches) {
-      crop.clear();
-      cells.forEach(([x, z], i) => plant(crop, x, z, i * 7, cropScale));
+      spots.forEach((_s, i) => place(i));
+      outlineEmpty();
+      onPlant(count);
       render();
       onDone();
       return;
     }
-    crop.clear();
-    const gap = Math.max(50, Math.min(200, 2200 / Math.max(1, cells.length)));
+    const gap = Math.max(60, Math.min(260, 2400 / Math.max(1, count)));
     const growing: { item: THREE.Group; t0: number }[] = [];
     let start = 0;
-    let planted = 0;
+    let counted = 0;
     run((now) => {
       if (token !== plantToken) return true;
       if (!start) start = now;
-      const due = Math.min(cells.length, Math.floor((now - start) / gap) + 1);
-      while (planted < due) {
-        const [x, z] = cells[planted]!;
-        const item = plant(crop, x, z, planted * 7, cropScale);
-        item.scale.setScalar(0.01);
-        growing.push({ item, t0: now });
-        planted += 1;
+      const due = Math.min(count, Math.floor((now - start) / gap) + 1);
+      while (counted < due) {
+        if (counted < spots.length) {
+          const item = place(counted);
+          item.scale.setScalar(0.01);
+          growing.push({ item, t0: now });
+        }
+        counted += 1;
+        onPlant(counted);
       }
       for (let i = growing.length - 1; i >= 0; i -= 1) {
         const p = Math.min(1, (now - growing[i]!.t0) / 300);
         growing[i]!.item.scale.setScalar(Math.max(0.01, cropScale * backOut(p)));
         if (p >= 1) growing.splice(i, 1);
       }
-      if (planted < cells.length || growing.length) return false;
+      if (counted < count || growing.length) return false;
+      outlineEmpty();
+      onDone();
+      return true;
+    });
+  }
+
+  /** Hide the other farms and slide this one, with its patch of roof, to the middle plot. */
+  function featureFarm(index: number, onDone: () => void): void {
+    const shift = padCentres[1]!.z - padCentres[index]!.z;
+    const group = farmGroups[index]!;
+    const pad = farmPads[index]!;
+    const groupZ = group.position.z;
+    const padZ = pad.position.z;
+    farmGrey[index] = false;
+    paintGrey(index);
+    const others = [0, 1, 2].filter((i) => i !== index).flatMap((i) => [farmGroups[i]!, farmPads[i]!]);
+    moveCamera(1);
+    if (reducedMotion.matches) {
+      others.forEach((part) => { part.visible = false; });
+      group.position.z = groupZ + shift;
+      pad.position.z = padZ + shift;
+      render();
+      onDone();
+      return;
+    }
+    let t0 = 0;
+    run((now) => {
+      if (destroyed) return true;
+      if (!t0) t0 = now;
+      const fade = Math.min(1, (now - t0) / 450);
+      others.forEach((part) => { part.scale.setScalar(Math.max(0.01, 1 - fade)); part.visible = fade < 1; });
+      const p = Math.min(1, Math.max(0, (now - t0 - 300) / 900));
+      const e = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
+      group.position.z = groupZ + shift * e;
+      pad.position.z = padZ + shift * e;
+      group.position.y = roofY + 0.015 + Math.sin(p * Math.PI) * 0.2;
+      if (p < 1) return false;
       onDone();
       return true;
     });
@@ -1073,12 +1165,16 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
 
   function resetFarms(): void {
     endDraw();
+    labelFarm = null;
     flyToken += 1;
     for (let i = 0; i < FARM_COUNT; i += 1) {
       farmGroups[i]!.clear();
       farmGroups[i]!.visible = false;
       farmGroups[i]!.position.copy(drawOrigin(i));
+      farmGroups[i]!.scale.setScalar(1);
       farmPads[i]!.visible = false;
+      farmPads[i]!.position.copy(padCentres[i]!);
+      farmPads[i]!.scale.setScalar(1);
       farmCrop[i] = null;
       farmDims[i] = { length: 0, width: 0 };
       farmGrey[i] = false;
@@ -1174,13 +1270,13 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     if (!state || state.farm !== index) { onDone(); return; }
     const points = state.sides.map((_s, i) => tipOf(state.sides, i + 1));
     const length = Math.round(Math.max(...points.map((p) => p.x)));
-    const width = Math.round(Math.max(...points.map((p) => -p.z)));
+    const width = Math.round(Math.max(...points.map((p) => p.z)));
     farmDims[index] = { length, width };
     endDraw();
     const group = farmGroups[index]!;
     buildPlotInto(group, length, width, false);
     const from = group.position.clone();
-    const to = padCentres[index]!.clone().add(new THREE.Vector3(-length * fu / 2, 0.015, width * fu / 2));
+    const to = padCentres[index]!.clone().add(new THREE.Vector3(-length * fu / 2, 0.015, -width * fu / 2));
     if (reducedMotion.matches) { group.position.copy(to); render(); onDone(); return; }
     let t0 = 0;
     run((now) => {
@@ -1244,7 +1340,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   let viewMoving = false;
   function viewFor(target: Focus): View {
     const phone = aspect < 0.9;
-    if (target === "meet") return { target: new THREE.Vector3(-1.6, 1.88, 0.2), frameWidth: 12.8, frameHeight: 9.2, x: 0.5, y: phone ? 0.35 : 0.5 };
+    if (target === "meet") return { target: new THREE.Vector3(-1.6, 1.88, 0.2), frameWidth: 12.8, frameHeight: 9.2, x: phone ? 0.5 : 0.44, y: phone ? 0.35 : 0.5 };
     if (target === "overview") return { target: new THREE.Vector3(-1.6, roofY, -0.1), frameWidth: phone ? 11.5 : 13, frameHeight: phone ? 10 : 9.6, x: 0.5, y: phone ? 0.6 : 0.56 };
     // A little closer than the opening view, the same for every plot. The plot sits right of and below centre,
     // leaving room on the left for Mei and her speech bubble above her.
@@ -1317,7 +1413,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const onMotion = (): void => render();
   reducedMotion.addEventListener("change", onMotion);
   resize();
-  renderDemo(8, 4, false);
+  renderDemo(3, 2, false);
 
   return {
     updateGarden: renderDemo,
@@ -1332,6 +1428,11 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     clearFarm,
     canDraw: () => true,
     growFarm,
+    featureFarm,
+    showFarmLabels(index) {
+      labelFarm = index;
+      render();
+    },
     setFarmGrey,
     focusFarm: (index) => moveCamera(index ?? "overview"),
     resetFarms,

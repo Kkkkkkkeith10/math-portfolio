@@ -15,6 +15,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       <div id="rooftop-scene" role="group" aria-label="Auntie Mei's rooftop. Draw a fence line to build each farm." data-lenis-prevent></div>
       <div class="g-bubble" id="g-bubble" hidden aria-live="polite"><b>Mei</b><p id="g-say"></p><div class="g-replies" id="g-replies"></div></div>
       <div class="g-stack" id="g-stack" hidden aria-live="polite"><div class="g-planks" id="g-planks" aria-hidden="true">${"<i></i>".repeat(FARM_FENCE)}</div><p id="g-stack-text"></p></div>
+      <div class="g-counter" id="g-counter" hidden aria-live="polite"></div>
       <div class="g-verdict" id="g-verdict" hidden aria-live="assertive"><span class="g-verdict__mark" id="g-mark"></span><p id="g-verdict-text"></p></div>
       <section class="g-compare" id="g-compare" hidden aria-label="Compare the three farms">
         <p class="g-compare__prompt">Order the areas from <b>smallest</b> to <b>largest</b>, with the largest on the right.</p>
@@ -28,11 +29,10 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
           <p class="g-pad__q" id="g-pad-q">A farmer has <b>24 m</b> of fence for a rectangular farm. He wants the <b>largest area</b>. How long should each side be?</p>
           <div class="g-pad__work">
             <div class="g-tools" role="group" aria-label="Notepad tools"><button type="button" data-tool="pen" aria-pressed="true">✎ Pen</button><button type="button" data-tool="eraser" aria-pressed="false">Eraser</button><button type="button" id="g-undo">↶ Undo</button></div>
-            <svg id="g-board" role="img" aria-label="Notepad: squared paper with the farm. Write your working here." data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse" width="20" height="20"><path d="M20 0H0V20" fill="none" stroke="#e2e6dc"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-geo"></g><g id="g-ink"></g></svg>
+            <svg id="g-board" role="img" aria-label="Notepad: squared paper. Write your working here." data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse" width="20" height="20"><path d="M20 0H0V20" fill="none" stroke="#e2e6dc"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-ink"></g></svg>
           </div>
-          <form class="g-pad__answer" id="g-answer-form"><label for="g-answer">Each side =</label><input id="g-answer" type="number" inputmode="numeric" min="0" placeholder="?"><span>m</span><button type="submit" class="g-btn">Check</button></form>
           <p class="g-pad__result" id="g-result" aria-live="polite"></p>
-          <div class="g-pad__foot"><a class="g-btn" href="#error" id="g-real">See real student working ↓</a><button type="button" class="g-link" id="g-restart">Play again</button></div>
+          <div class="g-pad__foot"><button type="button" class="g-btn" id="g-submit">Submit to AI</button><button type="button" class="g-link" id="g-restart">Play again</button><a href="#error" id="g-next" hidden>Next</a></div>
         </div>
       </section>
     </div>
@@ -42,7 +42,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   const $ = <T extends HTMLElement = HTMLElement>(id: string): T => root.querySelector<T>(`#${id}`)!;
   const world = root.querySelector<HTMLElement>(".g-world")!;
   const board = root.querySelector<SVGSVGElement>("#g-board")!;
-  const geo = root.querySelector<SVGGElement>("#g-geo")!;
   const inkLayer = root.querySelector<SVGGElement>("#g-ink")!;
   const controller = new AbortController();
   const on = (el: EventTarget, event: string, fn: EventListener): void => el.addEventListener(event, fn, { signal: controller.signal });
@@ -86,8 +85,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
       return;
     }
-    bubble.classList.remove("is-tail");
     if (phone.matches) {
+      bubble.classList.remove("is-tail");
       // Phones: the bubble comes from Mei's mouth, hangs just below her and points up at her.
       bubble.classList.add("is-below");
       const left = Math.max(8, Math.min(w - bw - 8, meiX - bw / 2));
@@ -96,9 +95,13 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
       return;
     }
+    // Wider screens: Mei stands front-right of her farm, so the bubble reaches right, away from it.
     bubble.classList.remove("is-below");
-    bubble.style.left = `${Math.max(12, Math.min(w - bw - 12, meiX - bw + 40))}px`;
+    bubble.classList.add("is-tail");
+    const left = Math.max(12, Math.min(w - bw - 12, meiX - 40));
+    bubble.style.left = `${left}px`;
     bubble.style.top = `${Math.max(12, meiY - bh - 14)}px`;
+    bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
   }
   function say(text: string, replies: Reply[] = [], extra?: HTMLElement): void {
     const bubble = $("g-bubble");
@@ -128,22 +131,29 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function intro(): void {
     if (started || !seen || !scene) return;
     started = true;
-    scene.walkIn(() => say("Hi! I'm Auntie Mei. Can you help with my garden?", [{ label: "Sure!", then: askPerimeter }]));
+    scene.walkIn(() => say("Hi! I'm Auntie Mei. This is my little farm. Can you help me with it?", [{ label: "Sure!", then: askPerimeter }]));
   }
   function askPerimeter(): void {
     scene?.showLabels(true);
     scene?.updateGarden(3, 2, false);
-    say("This plot is <b>3 m</b> long and <b>2 m</b> wide. What's the fence all the way around it?", [
-      { label: "5 m", then: () => say("5 only counts two sides. The fence has four: (3 + 2) × 2 = <b>10 m</b>.", [{ label: "Oh I see", then: askArea }]) },
-      { label: "10 m", then: () => say("Yes! (3 + 2) × 2 = <b>10 m</b>.", [{ label: "Next", then: askArea }]) },
+    say("My farm is <b>3 m</b> long and <b>2 m</b> wide. What's its <b>perimeter</b>, the length of fence all the way around?", [
+      { label: "5 m", then: () => say("5 m only counts two sides. The <b>perimeter</b> goes around all four: (3 + 2) × 2 = <b>10 m</b>.", [{ label: "Oh I see", then: askArea }]) },
+      { label: "10 m", then: () => say("Yes! <b>Perimeter</b> = (3 + 2) × 2 = <b>10 m</b>.", [{ label: "Next", then: askArea }]) },
     ]);
   }
   function askArea(): void {
     scene?.updateGarden(3, 2, true);
-    say("Each square grows one plant. How many plants fit inside?", [
-      { label: "5", then: () => say("Count the squares: 3 × 2 = <b>6</b>.", [{ label: "Oh, 6!", then: task }]) },
-      { label: "6", then: () => say("Yes! 3 × 2 = <b>6</b>.", [{ label: "Next", then: task }]) },
+    say("Each square is <b>1 m²</b> and grows one plant. What's the <b>area</b> of my farm?", [
+      { label: "5 m²", then: () => say("Count the squares: <b>area</b> = 3 m × 2 m = <b>6 m²</b>.", [{ label: "Oh, 6 m²!", then: problem }]) },
+      { label: "6 m²", then: () => say("Yes! <b>Area</b> = 3 m × 2 m = <b>6 m²</b>.", [{ label: "Next", then: problem }]) },
     ]);
+  }
+  function problem(): void {
+    scene?.setFenceLeft(FARM_FENCE);
+    say("6 m² is too small for me. I want to upgrade my farm, so I bought new wood planks: <b>12 m</b> of fence in total.", [{
+      label: "Next",
+      then: () => say("Here's my question: how should I lay out all <b>12 m</b> of fence to get the <b>biggest farming area</b>?", [{ label: "Let's find out!", then: task }]),
+    }]);
   }
   function task(): void {
     setPhase("build");
@@ -162,7 +172,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     $("g-stack-text").innerHTML = left > 0 ? `<b>${left} m</b> of fence left` : left === 0 ? "<b>All 12 m</b> used" : `<b>${-left} m</b> too much`;
   }
   const leadFor = (index: number): string => index === 0
-    ? "Let's build <b>3 farms</b>, each using all <b>12 m</b> of my fence. First, drag the gold handle along the dotted line. Drag back to rub out; turn a corner to start a new side."
+    ? "Let's build <b>3 farms</b>, each with all <b>12 m</b> of fence. Drag the gold handle along the dotted line."
     : index === 1
       ? "There are <b>2 more</b> combinations that use all <b>12 m</b> of my fence. Can you find one?"
       : "There's <b>1 more</b> combination that uses all <b>12 m</b>. Can you find it?";
@@ -202,7 +212,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const fence = 2 * (l + w);
     const again = [{ label: "Try again", then: () => tryAgain(index) }];
     if (fence > FARM_FENCE) {
-      say(`That needs <b>${fence} m</b> of fence, but I only have <b>12 m</b>. Think about the perimeter again: 2 × (L + W) = 2 × (${l} + ${w}) = <b>${fence} m</b>.`, again);
+      say(`That needs <b>${fence} m</b> of fence, but I only have <b>12 m</b>.<br>Think about the perimeter again: 2 × (L + W) = 2 × (${l} + ${w}) = <b>${fence} m</b>.`, again);
       return;
     }
     if (fence < FARM_FENCE) {
@@ -252,7 +262,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     $("g-bubble").hidden = true;
     const celebrate = (): void => {
       if (destroyed) return;
-      verdict(true, `Farm ${index + 1}: all <b>12 m</b> of fence used`);
+      verdict(true, `Farm ${index + 1}`);
       window.setTimeout(() => {
         if (destroyed) return;
         $("g-verdict").hidden = true;
@@ -270,32 +280,44 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     say("Nice! Let's have a look at which one has the biggest area.", [{ label: "Let's look", then: () => areaFarm(0) }]);
   }
 
-  /* ---------- Area: visit each farm, grow it and count the plants ---------- */
+  /* ---------- Area: visit each farm, work out its area, then grow it to check ---------- */
   function areaFarm(index: number): void {
     $("g-bubble").hidden = true;
     $("g-verdict").hidden = true;
     for (let i = 0; i < 3; i += 1) scene?.setFarmGrey(i, i !== index);
+    scene?.showFarmLabels(null);
     scene?.focusFarm(index);
-    const { length: l, width: w } = farms[index]!;
-    const grow = (): void => {
-      if (scene) scene.growFarm(index, () => askPlantCount(index, l, w));
-      else askPlantCount(index, l, w);
+    const ask = (): void => {
+      scene?.showFarmLabels(index);
+      askFarmArea(index, `What's the <b>area</b> of this farm?`);
     };
-    if (scene) scene.walkToFarm(index, grow);
-    else grow();
+    if (scene) scene.walkToFarm(index, ask);
+    else ask();
   }
-  function askPlantCount(index: number, l: number, w: number): void {
-    askCount(`Count the plants, or calculate <b>${l} × ${w}</b>. How many fit?`, (answer) => checkCount(index, l, w, answer));
+  function askFarmArea(index: number, text: string): void {
+    askCount(text, (answer) => {
+      $("g-bubble").hidden = true;
+      const { length: l, width: w } = farms[index]!;
+      const counter = $("g-counter");
+      counter.hidden = false;
+      const paint = (planted: number): void => {
+        counter.classList.toggle("is-over", planted > l * w);
+        counter.innerHTML = `🌱 <b>${planted}</b> / ${answer}`;
+      };
+      paint(0);
+      if (scene) scene.growFarm(index, answer, paint, () => checkCount(index, answer));
+      else checkCount(index, answer);
+    });
   }
   function askCount(text: string, onSubmit: (value: number) => void): void {
     const form = document.createElement("form");
     form.className = "g-ask";
-    form.innerHTML = `<input type="number" inputmode="numeric" min="1" max="121" placeholder="?" aria-label="Number of plants"><button type="submit">Check</button>`;
+    form.innerHTML = `<input type="number" inputmode="numeric" min="1" max="60" placeholder="?" aria-label="Area in square metres"><span>m²</span><button type="submit">Check</button>`;
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const input = form.querySelector("input")!;
       const value = Number(input.value);
-      if (!input.value || !Number.isInteger(value) || value < 1 || value > 121) { input.focus(); return; }
+      if (!input.value || !Number.isInteger(value) || value < 1 || value > 60) { input.focus(); return; }
       onSubmit(value);
     });
     say(text, [], form);
@@ -304,9 +326,9 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   let verdictTimer = 0;
   function verdict(ok: boolean, text: string): void {
     $("g-mark").textContent = ok ? "✓" : "✗";
+    $("g-bubble").hidden = true;
     const v = $("g-verdict");
     window.clearTimeout(verdictTimer);
-    if (!ok) verdictTimer = window.setTimeout(() => { v.hidden = true; }, 7000);
     v.classList.toggle("is-ok", ok);
     $("g-verdict-text").innerHTML = text;
     v.hidden = false;
@@ -314,15 +336,18 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     void v.offsetWidth;
     v.classList.add("pop");
   }
-  function checkCount(index: number, l: number, w: number, answer: number): void {
+  function checkCount(index: number, answer: number): void {
     if (destroyed) return;
+    const { length: l, width: w } = farms[index]!;
     const area = l * w;
     if (answer !== area) {
-      verdict(false, answer < area ? `More than ${answer}.` : `Not ${answer}.`);
-      askPlantCount(index, l, w);
+      const hint = "Count again, or use the <b>area</b> formula: <b>L × W</b>.";
+      askFarmArea(index, answer < area
+        ? `There's still room for <b>${area - answer} more</b>! Look at the dotted squares.<br>${hint}`
+        : `There isn't enough space for <b>${answer - area}</b> of the plants!<br>${hint}`);
       return;
     }
-    verdict(true, `<b>${l} × ${w} = ${area}</b> plants`);
+    verdict(true, `<b>${l} m × ${w} m = ${area} m²</b>`);
     const plan: GardenPlan = { id: Date.now() + index, length: l, width: w, fence: FARM_FENCE, area, prediction: answer, correctPrediction: true, validFence: true, ink: [] };
     plans.push(plan);
     updateGardenState({ plans: [...plans] });
@@ -331,8 +356,9 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function afterFarm(index: number, plan: GardenPlan): void {
     if (destroyed) return;
     $("g-verdict").hidden = true;
-    if (index < 2) say(`<b>${plan.area} plants!</b> On to the next farm.`, [{ label: "Next farm", then: () => areaFarm(index + 1) }]);
-    else say(`<b>${plan.area} plants!</b> Let's compare all three.`, [{ label: "Compare", then: openCompare }]);
+    $("g-counter").hidden = true;
+    if (index < 2) say(`An area of <b>${plan.area} m²</b>! On to the next farm.`, [{ label: "Next farm", then: () => areaFarm(index + 1) }]);
+    else say(`An area of <b>${plan.area} m²</b>! Let's compare all three.`, [{ label: "Compare", then: openCompare }]);
   }
 
   /* ---------- Compare: drag the three 3D cards to swap places, smallest to largest ---------- */
@@ -340,6 +366,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   let picked: HTMLElement | null = null;
   function openCompare(): void {
     $("g-bubble").hidden = true;
+    scene?.showFarmLabels(null);
     for (let i = 0; i < 3; i += 1) scene?.setFarmGrey(i, false);
     scene?.setStage("compare");
     const row = $("g-compare-row");
@@ -358,7 +385,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       card.className = "g-card";
       card.tabIndex = 0;
       card.dataset.id = String(plan.id);
-      card.innerHTML = `<div class="g-card__scene" aria-label="A ${plan.length} by ${plan.width} metre farm. Drag sideways to turn it."></div><p class="g-card__area">${plan.length} × ${plan.width} = ${plan.area}</p>`;
+      card.innerHTML = `<div class="g-card__scene" aria-label="A ${plan.length} by ${plan.width} metre farm. Drag sideways to turn it."></div><p class="g-card__area">${plan.length} m × ${plan.width} m<br><b>${plan.area} m²</b></p>`;
       row.append(card);
       wireCard(card);
       void import("./rooftop").then(({ mountFarmCard }) => {
@@ -453,16 +480,17 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const correct = areas.every((a, i) => i === 0 || areas[i - 1]! <= a);
     const result = $("g-compare-result");
     if (correct) {
-      result.className = "g-compare__result is-ok";
-      result.textContent = "✓ Smallest to largest!";
+      clearResult();
+      verdict(true, "Smallest to largest!");
       $("g-compare-row").classList.add("is-solved");
-      window.setTimeout(showRule, 1200);
+      window.setTimeout(showRule, 1600);
     } else {
       result.className = "g-compare__result is-wrong";
       result.textContent = "Not quite. Compare the areas, then swap the cards.";
     }
   });
   function showRule(): void {
+    $("g-verdict").hidden = true;
     $("g-compare").hidden = true;
     $("g-compare-row").classList.remove("is-solved");
     cardHandles.forEach((h) => h.destroy());
@@ -470,31 +498,48 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     setPhase("done");
     updateGardenState({ phase: "complete", plans: [...plans], transferPassed: false });
     scene?.setStage("complete");
-    const best = [...plans].sort((a, b) => b.area - a.area)[0]!;
-    const worst = [...plans].sort((a, b) => a.area - b.area)[0]!;
-    say(`The closer the two sides, the bigger the area \u2014 and the further apart, the smaller. <b>${best.length} × ${best.width} = ${best.area}</b> beats <b>${worst.length} × ${worst.width} = ${worst.area}</b>.`, [{ label: "Next →", then: openPad }]);
+    const sorted = [...plans].sort((a, b) => a.area - b.area);
+    const best = sorted[sorted.length - 1]!;
+    const bestIndex = plans.indexOf(best);
+    const areas = sorted.map((p) => `<b>${p.area} m²</b>`);
+    const showBest = (): void => {
+      $("g-bubble").hidden = true;
+      const answer = (): void => say(`The closer the length and width are, the bigger the area.<br>The square farm, <b>${best.length} m × ${best.width} m = ${best.area} m²</b>, is the biggest. So I'll build that one. Thank you!`, [{ label: "Next →", then: openPad }]);
+      if (scene) scene.featureFarm(bestIndex, () => scene?.walkToFarm(1, answer));
+      else answer();
+    };
+    say(`All three farms use the same <b>12 m</b> of fence, but their areas are different: ${areas[0]}, ${areas[1]} and ${areas[2]}.`, [{ label: "Why?", then: showBest }]);
   }
 
   /* ---------- Notepad: a TSA-style question ---------- */
   function openPad(): void {
     $("g-bubble").hidden = true;
     $("g-pad").hidden = false;
-    $<HTMLInputElement>("g-answer").value = "";
+    $<HTMLButtonElement>("g-submit").disabled = false;
+    $("g-submit").textContent = "Submit to AI";
     $("g-result").textContent = "";
     $("g-result").className = "g-pad__result";
     requestAnimationFrame(() => { drawBoard(); ScrollTrigger.refresh(); });
   }
-  on($("g-answer-form"), "submit", (e) => {
-    e.preventDefault();
-    const raw = $<HTMLInputElement>("g-answer").value;
-    if (!raw) { $("g-answer").focus(); return; }
-    const side = Number(raw);
-    const ok = side === 6;
-    const result = $("g-result");
-    result.className = `g-pad__result ${ok ? "is-ok" : "is-wrong"}`;
-    result.innerHTML = ok ? "✓ Correct! 6 m × 6 m gives the largest area: <b>36 m²</b>"
-      : side === 12 ? "✗ 12 m is length + width together. Split it equally."
-      : "✗ Not quite. Length + width = 12. Which sides are equal?";
+  /** The working goes to MathsAI; the next sections show what it does with it. */
+  on($("g-submit"), "click", () => {
+    const button = $<HTMLButtonElement>("g-submit");
+    if (button.disabled) return;
+    button.disabled = true;
+    button.textContent = "Sending to MathsAI…";
+    updateGardenState({ phase: "complete", plans: [...plans], transferPassed: true });
+    window.setTimeout(() => {
+      if (destroyed) return;
+      button.textContent = "✓ Sent";
+      const result = $("g-result");
+      result.className = "g-pad__result is-ok";
+      result.textContent = "Mission complete! Let's see what MathsAI finds in student working.";
+      window.setTimeout(() => {
+        if (destroyed) return;
+        if (document.fullscreenElement === root) void document.exitFullscreen().catch(() => undefined);
+        $("g-next").click();
+      }, 1200);
+    }, 900);
   });
 
   function restart(): void {
@@ -508,6 +553,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     drawInk();
     $("g-pad").hidden = true;
     $("g-compare").hidden = true;
+    $("g-counter").hidden = true;
+    $("g-verdict").hidden = true;
     updateGardenState({ phase: "build", plans: [], activePlan: null, transferPassed: false });
     task();
   }
@@ -527,12 +574,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const w = board.parentElement?.clientWidth ?? 0;
     if (w > 0) boardWidth = w;
     board.setAttribute("viewBox", `0 0 ${boardWidth} ${boardHeight}`);
-    geo.replaceChildren();
-    const x = 40, y = 40, gw = 160, gh = 120;
-    svgEl("rect", { x, y, width: gw, height: gh, class: "g-board-plot" }, geo);
-    svgEl("text", { x: x + gw / 2, y: y - 12, "text-anchor": "middle" }, geo).textContent = "? m";
-    svgEl("text", { x: x + gw + 10, y: y + gh / 2 + 5 }, geo).textContent = "? m";
-    svgEl("text", { x, y: y + gh + 26, class: "g-board-note" }, geo).textContent = "Fence = 24 m";
     drawInk();
   }
   function point(e: PointerEvent): [number, number] {
