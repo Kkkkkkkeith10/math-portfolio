@@ -388,7 +388,7 @@ body.on-dark .dots a.on { border-color: var(--accent); }
 .xp__body > ul { overflow: hidden; margin: 0; padding: 0 1.5rem 0 2.7rem; }
 .xp__toggle[aria-expanded="true"] + .xp__body { grid-template-rows: 1fr; }
 .xp__toggle[aria-expanded="true"] + .xp__body > ul { padding-bottom: 1.3rem; }
-.xp__body li { margin-bottom: 0.5rem; }
+.xp__body li { margin-bottom: 0.55rem; line-height: 1.55; }
 
 .contact { text-align: left; padding-bottom: 3rem; }
 .contact .btn { font-size: 1.1rem; margin-top: 0.4rem; }
