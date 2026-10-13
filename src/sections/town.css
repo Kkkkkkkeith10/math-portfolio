@@ -19,14 +19,29 @@
 .town-loop svg { width: 54px; height: 54px; flex: none; filter: drop-shadow(0 6px 8px #2d4a3a33); }
 .town-loop b { font: 600 clamp(1.05rem, 1.8vw, 1.3rem) var(--serif); white-space: nowrap; }
 
+.town-pager { display: none; }
 #world .lead { max-width: 46rem; }
 .replica-note { margin: .9rem 0 0; font-size: .82rem; font-style: italic; color: var(--ink-soft); }
 @media (max-width: 900px) {
   .town-scene { height: 250px; }
 }
 @media (max-width: 620px) {
-  .town-places { grid-template-columns: repeat(3, calc(100% - 1rem)); overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: .6rem; }
+  .town-places { grid-template-columns: repeat(3, 84%); gap: .9rem; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .town-places::-webkit-scrollbar { display: none; }
   .town-card { scroll-snap-align: start; }
+  .town { gap: 1.2rem; }
+  .town-pager { display: flex; align-items: center; justify-content: space-between; margin-top: -.4rem; }
+  .town-dots { display: flex; gap: .45rem; }
+  .town-dots i { width: 8px; height: 8px; border-radius: 99px; background: #c9cfc0; transition: width .25s, background .25s; }
+  .town-dots i.is-on { width: 22px; background: var(--teal); }
+  .town-swipe { font-size: .8rem; font-weight: 600; color: var(--teal); animation: town-nudge 1.6s ease-in-out infinite; transition: opacity .3s; }
+  .town-swipe.is-end { opacity: 0; }
+}
+@keyframes town-nudge { 0%, 100% { transform: none; } 50% { transform: translateX(5px); } }
+@media (max-width: 620px) and (prefers-reduced-motion: reduce) {
+  .town-swipe { animation: none; }
+}
+@media (max-width: 620px) {
   .town-loop { flex-direction: column; align-items: stretch; }
   .town-loop li { width: 100%; }
 }

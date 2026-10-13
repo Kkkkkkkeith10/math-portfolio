@@ -21,6 +21,7 @@ export function initTown(): void {
         <div class="town-card__body"><div class="town-card__top"><h3>${p.title}</h3><span class="town-skill">${p.skill}</span></div><p>${p.task}</p></div>
       </article>`).join("")}
     </div>
+    <div class="town-pager" aria-hidden="true"><span class="town-dots">${PLACES.map((_p, i) => `<i${i === 0 ? ' class="is-on"' : ""}></i>`).join("")}</span><span class="town-swipe">Swipe for more →</span></div>
     <div class="town-reward">
       <ul class="town-loop">
         <li>${COIN}<b>Collect coins</b></li>
@@ -30,6 +31,18 @@ export function initTown(): void {
       <p>Every problem solved earns coins. The more they practise, the more their home grows, so students keep coming back.</p>
     </div>
   </div>`;
+
+  const places = host.querySelector<HTMLElement>(".town-places")!;
+  const dots = Array.from(host.querySelectorAll<HTMLElement>(".town-dots i"));
+  const swipe = host.querySelector<HTMLElement>(".town-swipe")!;
+  places.addEventListener("scroll", () => {
+    const cards = Array.from(places.children) as HTMLElement[];
+    const left = places.getBoundingClientRect().left;
+    let current = 0;
+    cards.forEach((card, i) => { if (Math.abs(card.getBoundingClientRect().left - left) < Math.abs(cards[current]!.getBoundingClientRect().left - left)) current = i; });
+    dots.forEach((dot, i) => dot.classList.toggle("is-on", i === current));
+    swipe.classList.toggle("is-end", current === cards.length - 1);
+  }, { passive: true });
 
   const io = new IntersectionObserver((entries) => {
     if (!entries.some((e) => e.isIntersecting)) return;
