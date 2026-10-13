@@ -4,8 +4,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import "./garden.css";
 
 const FENCE = 24;
-/** Wrong answers to the 8 cm × 6 cm question that match a real student case in section 03. */
-const REAL_CASES: Record<number, number> = { 14: 0, 28: 1, 42: 2 };
+const MAX_GARDENS = 3;
 
 interface Reply { label: string; then: () => void }
 
@@ -22,12 +21,12 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       <section class="g-pad" id="g-pad" hidden aria-labelledby="g-pad-q">
         <div class="g-pad__sheet">
           <p class="g-pad__tag">TSA-style question</p>
-          <p class="g-pad__q" id="g-pad-q">The figure shows a rectangle <b>8 cm</b> long and <b>6 cm</b> wide. Find its area.</p>
+          <p class="g-pad__q" id="g-pad-q">A farmer has <b>24 m</b> of fence for a rectangular farm. He wants the <b>largest area</b>. How long should each side be?</p>
           <div class="g-pad__work">
             <div class="g-tools" role="group" aria-label="Notepad tools"><button type="button" data-tool="pen" aria-pressed="true">✎ Pen</button><button type="button" data-tool="eraser" aria-pressed="false">Eraser</button><button type="button" id="g-undo">↶ Undo</button></div>
-            <svg id="g-board" role="img" aria-label="Notepad: squared paper with the rectangle. Write your working here." data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse" width="20" height="20"><path d="M20 0H0V20" fill="none" stroke="#e2e6dc"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-geo"></g><g id="g-ink"></g></svg>
+            <svg id="g-board" role="img" aria-label="Notepad: squared paper with the farm. Write your working here." data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse" width="20" height="20"><path d="M20 0H0V20" fill="none" stroke="#e2e6dc"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-geo"></g><g id="g-ink"></g></svg>
           </div>
-          <form class="g-pad__answer" id="g-answer-form"><label for="g-answer">Area =</label><input id="g-answer" type="number" inputmode="numeric" min="0" placeholder="?"><span>cm²</span><button type="submit" class="g-btn">Check</button></form>
+          <form class="g-pad__answer" id="g-answer-form"><label for="g-answer">Each side =</label><input id="g-answer" type="number" inputmode="numeric" min="0" placeholder="?"><span>m</span><button type="submit" class="g-btn">Check</button></form>
           <p class="g-pad__result" id="g-result" aria-live="polite"></p>
           <div class="g-pad__foot"><a class="g-btn" href="#error" id="g-real">See real student working ↓</a><button type="button" class="g-link" id="g-restart">Play again</button></div>
         </div>
@@ -53,9 +52,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   let building = false;
   let awaitingDrag = false;
   let found36 = false;
-  let askedWhy = false;
-  let beatTries = 0;
-  let lastAnswer: number | null = null;
   const plans: GardenPlan[] = [];
   let ink: number[][][] = [];
   const history: number[][][][] = [];
@@ -196,7 +192,9 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   /** Mei stays quiet while the garden changes. OK appears only after the student drags. */
   function hold(): void {
     awaitingDrag = true;
-    const line = found36 ? "Make a garden with more than 36." : plans.length ? "Try a new shape." : "Help me build a farm with <b>24 m</b> of fence.";
+    const line = found36 ? "Make a garden with more than 36."
+      : plans.length === MAX_GARDENS - 1 ? "Try <b>6 m × 6 m</b>."
+      : plans.length ? "Try a new shape." : "Help me build a farm with <b>24 m</b> of fence.";
     say(line, [], canDrag() ? undefined : steppers());
   }
   function showOk(): void {
@@ -288,43 +286,38 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     window.setTimeout(() => next(plans[plans.length - 1]!), 1600);
   }
 
-  /* ---------- Guide: one question, then the extreme ---------- */
+  /* ---------- Guide: at most three gardens ---------- */
   const again = (): void => { $("g-verdict").hidden = true; $("g-seeds-left").hidden = true; unlock(); };
   function next(plan: GardenPlan): void {
     if (destroyed) return;
     $("g-verdict").hidden = true;
     $("g-seeds-left").hidden = true;
-    const best = Math.max(...plans.slice(0, -1).map((p) => p.area), 0);
-    if (found36) {
-      beatTries += 1;
-      if (beatTries >= 2) { end(plan.area); return; }
-      say(`${plan.area} plants. Still not more than 36.`, [{ label: "Try again", then: again }]);
+    const last = plans.length >= MAX_GARDENS;
+    if (plan.area === 36 && !found36) {
+      found36 = true;
+      if (last) { end(); return; }
+      say("<b>36 plants!</b> Can you beat 36?", [{ label: "I'll try", then: again }]);
       return;
     }
-    if (plan.area === 36) {
-      found36 = true;
-      say("<b>36 plants!</b> Can you beat 36?", [{ label: "I'll try", then: again }]);
+    if (last) { end(); return; }
+    if (found36) {
+      say(`${plan.area} plants. Still not more than 36.`, [{ label: "Try again", then: again }]);
       return;
     }
     if (plans.length === 1) {
       say(`<b>${plan.area} plants!</b> Can we grow more with the same 24 m?`, [{ label: "Try another shape", then: again }]);
       return;
     }
-    if (!askedWhy) {
-      askedWhy = true;
-      const prev = plans[plans.length - 2]!;
-      const [big, small] = plan.area > prev.area ? [plan, prev] : [prev, plan];
-      const name = (p: GardenPlan): string => `${p.length} × ${p.width}`;
-      const more = (): void => say("Yes! Closer sides, more plants. Can you grow even more?", [{ label: "Let's try", then: again }]);
-      say(`${name(small)} grew ${small.area}. ${name(big)} grew ${big.area}. Why did ${name(big)} grow more?`, [
-        { label: "It has more fence", then: () => say(`Both use 24 m. Look at the sides: ${big.length} and ${big.width}, ${small.length} and ${small.width}.`, [{ label: "Its sides are closer!", then: more }]) },
-        { label: "Its sides are closer", then: more },
-      ]);
-      return;
-    }
-    say(plan.area > best ? `<b>${plan.area} plants!</b> Your best yet. Can you grow more?` : `${plan.area} plants. Your best is ${best}. Keep going!`, [{ label: "Try again", then: again }]);
+    const prev = plans[plans.length - 2]!;
+    const [big, small] = plan.area >= prev.area ? [plan, prev] : [prev, plan];
+    const name = (p: GardenPlan): string => `${p.length} × ${p.width}`;
+    const hint = (): void => say("Yes! Closer sides, more plants. So try equal sides: <b>6 m × 6 m</b>.", [{ label: "Let's try", then: again }]);
+    say(`${name(small)} grew ${small.area}. ${name(big)} grew ${big.area}. Why did ${name(big)} grow more?`, [
+      { label: "It has more fence", then: () => say(`Both use 24 m. Look at the sides: ${big.length} and ${big.width}, ${small.length} and ${small.width}.`, [{ label: "Its sides are closer!", then: hint }]) },
+      { label: "Its sides are closer", then: hint },
+    ]);
   }
-  function end(area: number): void {
+  function end(): void {
     setPhase("done");
     updateGardenState({ phase: "complete", plans: [...plans], transferPassed: false });
     lock();
@@ -333,7 +326,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     width = 6;
     scene?.updateGarden(6, 6, true);
     scene?.setStage("complete");
-    say(`${area} plants. You can't beat 36! Same fence: <b>equal sides grow the most</b>.`, [{ label: "Next →", then: openPad }]);
+    const lead = found36 ? "<b>36 is the most!</b>" : "The most is <b>6 × 6 = 36</b>.";
+    say(`${lead} With 24 m of fence, length + width is always 12. The closer the two sides, the more plants: 8 × 4 = 32, 7 × 5 = 35, 6 × 6 = 36. So <b>equal sides grow the most</b>.`, [{ label: "Next →", then: openPad }]);
   }
 
   /* ---------- Notepad: a TSA-style question ---------- */
@@ -343,29 +337,24 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     $<HTMLInputElement>("g-answer").value = "";
     $("g-result").textContent = "";
     $("g-result").className = "g-pad__result";
-    lastAnswer = null;
     requestAnimationFrame(() => { drawBoard(); ScrollTrigger.refresh(); });
   }
   on($("g-answer-form"), "submit", (e) => {
     e.preventDefault();
     const raw = $<HTMLInputElement>("g-answer").value;
     if (!raw) { $("g-answer").focus(); return; }
-    lastAnswer = Number(raw);
-    const ok = lastAnswer === 48;
+    const side = Number(raw);
+    const ok = side === 6;
     const result = $("g-result");
     result.className = `g-pad__result ${ok ? "is-ok" : "is-wrong"}`;
-    result.innerHTML = ok ? "✓ Correct! 8 × 6 = <b>48 cm²</b>" : lastAnswer in REAL_CASES ? "✗ Not quite. Real students wrote this too. See why below." : "✗ Not quite. Try again.";
-  });
-  on($("g-real"), "click", () => {
-    const index = lastAnswer !== null ? REAL_CASES[lastAnswer] : undefined;
-    if (index !== undefined) window.dispatchEvent(new CustomEvent("knowledge:case", { detail: { index } }));
+    result.innerHTML = ok ? "✓ Correct! 6 m × 6 m gives the largest area: <b>36 m²</b>"
+      : side === 12 ? "✗ 12 m is length + width together. Split it equally."
+      : "✗ Not quite. Length + width = 12. Which sides are equal?";
   });
 
   function restart(): void {
     plans.length = 0;
     found36 = false;
-    askedWhy = false;
-    beatTries = 0;
     ink = [];
     history.length = 0;
     drawInk();
@@ -392,9 +381,9 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     geo.replaceChildren();
     const x = 40, y = 40, gw = 160, gh = 120;
     svgEl("rect", { x, y, width: gw, height: gh, class: "g-board-plot" }, geo);
-    svgEl("text", { x: x + gw / 2, y: y - 12, "text-anchor": "middle" }, geo).textContent = "8 cm";
-    svgEl("text", { x: x + gw + 10, y: y + gh / 2 + 5 }, geo).textContent = "6 cm";
-    svgEl("text", { x, y: y + gh + 26, class: "g-board-note" }, geo).textContent = "Not drawn to scale";
+    svgEl("text", { x: x + gw / 2, y: y - 12, "text-anchor": "middle" }, geo).textContent = "? m";
+    svgEl("text", { x: x + gw + 10, y: y + gh / 2 + 5 }, geo).textContent = "? m";
+    svgEl("text", { x, y: y + gh + 26, class: "g-board-note" }, geo).textContent = "Fence = 24 m";
     drawInk();
   }
   function point(e: PointerEvent): [number, number] {

@@ -92,9 +92,5 @@ export function initKnowledge(): void {
     const card = (event.target as Element).closest<HTMLButtonElement>("[data-kg-case]");
     if (card) select(Number(card.dataset.kgCase));
   });
-  window.addEventListener("knowledge:case", (event) => {
-    const index = (event as CustomEvent<{ index?: number }>).detail?.index;
-    if (index !== undefined && CASES[index]) select(index);
-  });
   select(0);
 }
