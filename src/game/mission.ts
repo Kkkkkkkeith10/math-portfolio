@@ -258,9 +258,12 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       pill.classList.add("tick");
     }, (planted) => finish(seeds, planted, area));
   }
+  let verdictTimer = 0;
   function verdict(ok: boolean, text: string): void {
     $("g-mark").textContent = ok ? "✓" : "✗";
     const v = $("g-verdict");
+    window.clearTimeout(verdictTimer);
+    if (!ok) verdictTimer = window.setTimeout(() => { v.hidden = true; }, 7000);
     v.classList.toggle("is-ok", ok);
     $("g-verdict-text").innerHTML = text;
     v.hidden = false;
