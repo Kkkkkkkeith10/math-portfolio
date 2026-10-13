@@ -17,9 +17,14 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       <div class="g-stack" id="g-stack" hidden aria-live="polite"><div class="g-planks" id="g-planks" aria-hidden="true">${"<i></i>".repeat(FARM_FENCE)}</div><p id="g-stack-text"></p></div>
       <div class="g-verdict" id="g-verdict" hidden aria-live="assertive"><span class="g-verdict__mark" id="g-mark"></span><p id="g-verdict-text"></p></div>
       <section class="g-compare" id="g-compare" hidden aria-label="Compare the three farms">
-        <p class="g-compare__prompt">Put the farms in order: <b>biggest area first</b>.</p>
-        <div class="g-compare__row" id="g-compare-row"></div>
-        <button type="button" class="g-btn" id="g-compare-check">Check order</button>
+        <p class="g-compare__prompt">Drag each farm into a box: <b>biggest area first</b>.</p>
+        <div class="g-tray" id="g-tray"></div>
+        <div class="g-slots" id="g-slots">
+          <div class="g-slot" data-rank="0" tabindex="0" role="button" aria-label="Biggest area"><span>1st · Biggest</span></div>
+          <div class="g-slot" data-rank="1" tabindex="0" role="button" aria-label="Middle area"><span>2nd</span></div>
+          <div class="g-slot" data-rank="2" tabindex="0" role="button" aria-label="Smallest area"><span>3rd · Smallest</span></div>
+        </div>
+        <button type="button" class="g-btn" id="g-compare-check" disabled>Check order</button>
         <p class="g-compare__result" id="g-compare-result" aria-live="polite"></p>
       </section>
       <section class="g-pad" id="g-pad" hidden aria-labelledby="g-pad-q">
@@ -52,6 +57,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   let seen = false;
   let started = false;
   const plans: GardenPlan[] = [];
+  const farms: { length: number; width: number }[] = [];
   let cardHandles: { destroy(): void }[] = [];
   let ink: number[][][] = [];
   const history: number[][][][] = [];
@@ -65,7 +71,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   const phone = window.matchMedia("(max-width: 560px)");
 
   const key = (l: number, w: number): string => `${Math.max(l, w)}x${Math.min(l, w)}`;
-  const tried = (l: number, w: number): boolean => plans.some((p) => key(p.length, p.width) === key(l, w));
+  const tried = (l: number, w: number): boolean => farms.some((f) => key(f.length, f.width) === key(l, w));
   const canDraw = (): boolean => !!scene && scene.canDraw();
 
   /* ---------- Mei's speech bubble ---------- */
@@ -76,19 +82,16 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const bw = bubble.offsetWidth;
     const bh = bubble.offsetHeight;
     if (root.dataset.phase !== "meet") {
-      // Farms run down to the right of where Mei stands, so above her head and to the right stays clear.
-      bubble.classList.remove("is-docked", "is-below");
-      bubble.classList.add("is-right");
-      const left = Math.max(8, Math.min(w - bw - 8, meiX - 30));
-      bubble.style.left = `${left}px`;
-      bubble.style.top = `${Math.max(8, meiY - bh - 14)}px`;
-      bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
+      // The camera keeps the farm being worked on right of and below centre, so the top-left corner stays clear.
+      bubble.classList.remove("is-below");
+      bubble.classList.add("is-docked");
+      bubble.style.left = "";
+      bubble.style.top = "";
       return;
     }
-    bubble.classList.remove("is-right");
+    bubble.classList.remove("is-docked");
     if (phone.matches) {
       // Phones: the bubble comes from Mei's mouth, hangs just below her and points up at her.
-      bubble.classList.remove("is-docked");
       bubble.classList.add("is-below");
       const left = Math.max(8, Math.min(w - bw - 8, meiX - bw / 2));
       bubble.style.left = `${left}px`;
@@ -97,9 +100,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       return;
     }
     bubble.classList.remove("is-below");
-    const docked = root.dataset.phase !== "meet";
-    bubble.classList.toggle("is-docked", docked);
-    if (docked) { bubble.style.left = ""; bubble.style.top = ""; return; }
     bubble.style.left = `${Math.max(12, Math.min(w - bw - 12, meiX - bw + 40))}px`;
     bubble.style.top = `${Math.max(12, meiY - bh - 14)}px`;
   }
@@ -164,21 +164,63 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     $("g-stack").classList.toggle("is-exact", left === 0);
     $("g-stack-text").innerHTML = left > 0 ? `<b>${left} m</b> of fence left` : left === 0 ? "<b>All 12 m</b> used" : `<b>${-left} m</b> too much`;
   }
+  /** The shapes still allowed for a farm: the first is fixed, the other two are 1 × 5 and 3 × 3 in either order. */
+  function shapesFor(index: number): [number, number][] {
+    if (index === 0) return [[4, 2]];
+    return ([[1, 5], [3, 3]] as [number, number][]).filter(([l, w]) => !tried(l, w));
+  }
+  const shapeText = (index: number): string => shapesFor(index).map(([l, w]) => `<b>${l} × ${w}</b>`).join(" or ");
+  const fits = (index: number, l: number, w: number): boolean => shapesFor(index).some(([a, b]) => key(a, b) === key(l, w));
+
   function startFarm(index: number): void {
     $("g-verdict").hidden = true;
+    for (let i = 0; i < index; i += 1) scene?.setFarmGrey(i, true);
+    scene?.focusFarm(index);
     scene?.walkToFarm(index, () => {
       $("g-stack").hidden = false;
       renderFenceText(FARM_FENCE);
       const lead = index === 0
-        ? "Let's plan <b>3 farms</b>, each with exactly <b>12 m</b> of fence. Drag to draw the length, then the width."
-        : "One more farm — draw a new shape, still 12 m of fence.";
+        ? "Let's build <b>3 farms</b>, each with exactly <b>12 m</b> of fence. First, a <b>4 m × 2 m</b> farm: drag the gold handle along the dotted line, <b>one side at a time</b>."
+        : index === 1
+          ? `Next, draw a ${shapeText(index)} farm. Same <b>12 m</b> of fence, one side at a time.`
+          : `Last one: draw the ${shapeText(index)} farm.`;
       say(lead, []);
       beginDrawing(index);
     });
   }
   function beginDrawing(index: number): void {
     if (!canDraw()) { manualDraw(index); return; }
-    scene!.beginDraw(index, (l, w) => renderFenceText(FARM_FENCE - 2 * (l + w)), (l, w) => onFarmDrawn(index, l, w));
+    scene!.beginDraw(index, {
+      guide: index === 0 ? { length: 4, width: 2 } : null,
+      check: (side, metres, sides) => checkSide(index, side, metres, sides),
+      onChange: (usedSoFar) => renderFenceText(FARM_FENCE - usedSoFar),
+      onComplete: (l, w) => onFarmDrawn(index, l, w),
+    });
+  }
+  function checkSide(index: number, side: number, metres: number, sides: readonly number[]): boolean {
+    if (side === 0) {
+      const ok = index === 0 ? metres === 4 : shapesFor(index).some(([l, w]) => l === metres || w === metres);
+      if (ok) say(`<b>${metres} m</b>. Now drag the next side.`);
+      else if (index === 0) say("Follow the dotted line: this side is <b>4 m</b>. Try again.");
+      else say(`For a ${shapeText(index)} farm, this side can't be ${metres} m. Try again.`);
+      return ok;
+    }
+    if (side === 1) {
+      const first = sides[0]!;
+      const ok = index === 0 ? metres === 2 : fits(index, first, metres);
+      if (ok) say(`<b>${first} m</b> and <b>${metres} m</b>. Now come back along the third side.`);
+      else if (index === 0) say("Follow the dotted line: this side is <b>2 m</b>. Try again.");
+      else if (first + metres !== FARM_FENCE / 2) say(`${first} + ${metres} = ${first + metres}. The other two sides need ${first + metres} m too: that's <b>${2 * (first + metres)} m</b>, but I only have 12 m. Try again.`);
+      else say(`You've already built ${first} × ${metres}. Make ${shapeText(index)}. Try again.`);
+      return ok;
+    }
+    const opposite = sides[side - 2]!;
+    if (metres !== opposite) {
+      say(`Keep going: this side matches the one opposite, <b>${opposite} m</b>.`);
+      return false;
+    }
+    if (side === 2) say("Last side: close the fence!");
+    return true;
   }
   function manualDraw(index: number): void {
     let l = 1;
@@ -206,22 +248,45 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     confirm.addEventListener("click", () => onFarmDrawn(index, l, w));
     wrap.append(confirm);
     renderFenceText(FARM_FENCE - 2 * (l + w));
-    say("Set the length and width. You have <b>12 m</b> of fence.", [], wrap);
+    say(`Set the sides for a ${shapeText(index)} farm. You have <b>12 m</b> of fence.`, [], wrap);
   }
   function onFarmDrawn(index: number, l: number, w: number): void {
-    const fence = 2 * (l + w);
-    if (fence !== FARM_FENCE) {
-      say(fence > FARM_FENCE ? `That's <b>${fence} m</b> of fence. I only have 12!` : `That's <b>${fence} m</b>. ${FARM_FENCE - fence} m is left \u2014 use it all.`, [{ label: "Try again", then: () => beginDrawing(index) }]);
+    if (destroyed) return;
+    if (!fits(index, l, w)) {
+      const fence = 2 * (l + w);
+      say(fence !== FARM_FENCE ? `That's <b>${fence} m</b> of fence. I have exactly 12 m.` : `Make ${shapeText(index)}.`, [{ label: "Try again", then: () => beginDrawing(index) }]);
       return;
     }
-    if (tried(l, w)) {
-      say(`You already tried ${l} × ${w}. Draw a different shape.`, [{ label: "Try again", then: () => beginDrawing(index) }]);
-      return;
-    }
-    $("g-stack").hidden = true;
+    farms[index] = { length: l, width: w };
     $("g-bubble").hidden = true;
-    if (scene) scene.growFarm(index, () => askPlantCount(index, l, w));
-    else askPlantCount(index, l, w);
+    verdict(true, `Farm ${index + 1}: all <b>12 m</b> of fence used`);
+    window.setTimeout(() => {
+      if (destroyed) return;
+      $("g-verdict").hidden = true;
+      if (index < 2) { startFarm(index + 1); return; }
+      $("g-stack").hidden = true;
+      allDrawn();
+    }, 1500);
+  }
+  function allDrawn(): void {
+    for (let i = 0; i < 3; i += 1) scene?.setFarmGrey(i, false);
+    scene?.focusFarm(null);
+    say("Nice! Let's have a look at which one has the biggest area.", [{ label: "Let's look", then: () => areaFarm(0) }]);
+  }
+
+  /* ---------- Area: visit each farm, grow it and count the plants ---------- */
+  function areaFarm(index: number): void {
+    $("g-bubble").hidden = true;
+    $("g-verdict").hidden = true;
+    for (let i = 0; i < 3; i += 1) scene?.setFarmGrey(i, i !== index);
+    scene?.focusFarm(index);
+    const { length: l, width: w } = farms[index]!;
+    const grow = (): void => {
+      if (scene) scene.growFarm(index, () => askPlantCount(index, l, w));
+      else askPlantCount(index, l, w);
+    };
+    if (scene) scene.walkToFarm(index, grow);
+    else grow();
   }
   function askPlantCount(index: number, l: number, w: number): void {
     askCount(`Count the plants, or calculate <b>${l} × ${w}</b>. How many fit?`, (answer) => checkCount(index, l, w, answer));
@@ -270,74 +335,145 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function afterFarm(index: number, plan: GardenPlan): void {
     if (destroyed) return;
     $("g-verdict").hidden = true;
-    scene?.dimFarm(index, true);
-    if (index < 2) say(`<b>${plan.area} plants!</b> One more farm to go.`, [{ label: "Next farm", then: () => startFarm(index + 1) }]);
+    if (index < 2) say(`<b>${plan.area} plants!</b> On to the next farm.`, [{ label: "Next farm", then: () => areaFarm(index + 1) }]);
     else say(`<b>${plan.area} plants!</b> Let's compare all three.`, [{ label: "Compare", then: openCompare }]);
   }
 
-  /* ---------- Compare: three 3D cards, sorted by area ---------- */
+  /* ---------- Compare: drag the three 3D cards into ranked boxes ---------- */
+  const slots = (): HTMLElement[] => Array.from(root.querySelectorAll<HTMLElement>(".g-slot"));
+  let picked: HTMLElement | null = null;
   function openCompare(): void {
     $("g-bubble").hidden = true;
+    for (let i = 0; i < 3; i += 1) scene?.setFarmGrey(i, false);
     scene?.setStage("compare");
-    const row = $("g-compare-row");
-    row.innerHTML = "";
+    const tray = $("g-tray");
+    tray.replaceChildren();
+    slots().forEach((slot) => { slot.querySelector(".g-card")?.remove(); slot.classList.remove("is-over"); });
+    picked = null;
     const order = [...plans].sort(() => Math.random() - 0.5);
     order.forEach((plan) => {
       const card = document.createElement("div");
       card.className = "g-card";
+      card.tabIndex = 0;
       card.dataset.id = String(plan.id);
-      card.innerHTML = `<div class="g-card__scene" aria-label="A ${plan.length} by ${plan.width} metre farm"></div><p class="g-card__area">${plan.area} plants</p><div class="g-card__moves"><button type="button" data-move="-1" aria-label="Move left">←</button><button type="button" data-move="1" aria-label="Move right">→</button></div>`;
-      row.append(card);
+      card.innerHTML = `<div class="g-card__scene" aria-label="A ${plan.length} by ${plan.width} metre farm. Drag sideways to turn it."></div><p class="g-card__area">${plan.length} × ${plan.width} = ${plan.area}</p><p class="g-card__grip" aria-hidden="true">⠿ drag</p>`;
+      tray.append(card);
+      wireCard(card);
       void import("./rooftop").then(({ mountFarmCard }) => {
         if (destroyed) return;
         const host = card.querySelector<HTMLElement>(".g-card__scene");
         if (host) cardHandles.push(mountFarmCard(host, plan.length, plan.width));
       });
     });
-    wireMoves();
+    updateCompare();
     $("g-compare-result").textContent = "";
     $("g-compare-result").className = "g-compare__result";
     $("g-compare").hidden = false;
     requestAnimationFrame(() => ScrollTrigger.refresh());
   }
-  function wireMoves(): void {
-    const row = $("g-compare-row");
-    const cards = Array.from(row.children) as HTMLElement[];
-    cards.forEach((card, i) => {
-      const buttons = card.querySelectorAll<HTMLButtonElement>("[data-move]");
-      buttons[0]!.disabled = i === 0;
-      buttons[1]!.disabled = i === cards.length - 1;
-      buttons.forEach((b) => {
-        b.onclick = () => {
-          const dir = Number(b.dataset.move);
-          const all = Array.from(row.children);
-          const j = i + dir;
-          if (j < 0 || j >= all.length) return;
-          if (dir > 0) row.insertBefore(all[j]!, card);
-          else row.insertBefore(card, all[j]!);
-          wireMoves();
-        };
-      });
+  function dropTargetAt(x: number, y: number): HTMLElement | null {
+    for (const target of [...slots(), $("g-tray")]) {
+      const r = target.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return target;
+    }
+    return null;
+  }
+  function placeCard(card: HTMLElement, target: HTMLElement): void {
+    const from = card.parentElement!;
+    if (target === from) return;
+    // A filled box swaps: its card goes back to wherever the dragged card came from.
+    const occupant = target.classList.contains("g-slot") ? target.querySelector<HTMLElement>(".g-card") : null;
+    target.append(card);
+    if (occupant) from.append(occupant);
+    updateCompare();
+  }
+  function pick(card: HTMLElement | null): void {
+    picked?.classList.remove("is-picked");
+    picked = card === picked ? null : card;
+    picked?.classList.add("is-picked");
+  }
+  function wireCard(card: HTMLElement): void {
+    let pointerId: number | null = null;
+    let startX = 0;
+    let startY = 0;
+    let lifted = false;
+    const signal = controller.signal;
+    card.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || (e.target as Element).closest(".g-card__scene")) return;
+      pointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      lifted = false;
+      card.setPointerCapture(e.pointerId);
+    }, { signal });
+    card.addEventListener("pointermove", (e) => {
+      if (e.pointerId !== pointerId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!lifted && Math.hypot(dx, dy) < 6) return;
+      lifted = true;
+      pick(null);
+      card.classList.add("is-lifted");
+      card.style.transform = `translate(${dx}px, ${dy}px) rotate(-2deg)`;
+      const over = dropTargetAt(e.clientX, e.clientY);
+      slots().forEach((slot) => slot.classList.toggle("is-over", slot === over));
+    }, { signal });
+    const end = (e: PointerEvent): void => {
+      if (e.pointerId !== pointerId) return;
+      pointerId = null;
+      if (card.hasPointerCapture(e.pointerId)) card.releasePointerCapture(e.pointerId);
+      card.classList.remove("is-lifted");
+      card.style.transform = "";
+      slots().forEach((slot) => slot.classList.remove("is-over"));
+      if (!lifted) { if (e.type === "pointerup") pick(card); return; }
+      const target = dropTargetAt(e.clientX, e.clientY);
+      if (target && e.type === "pointerup") placeCard(card, target);
+    };
+    card.addEventListener("pointerup", end, { signal });
+    card.addEventListener("pointercancel", end, { signal });
+    card.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      pick(card);
+    }, { signal });
+  }
+  for (const slot of slots()) {
+    const drop = (): void => {
+      if (!picked) return;
+      const card = picked;
+      pick(null);
+      placeCard(card, slot);
+    };
+    on(slot, "click", (e) => { if (!(e.target as Element).closest(".g-card")) drop(); });
+    on(slot, "keydown", (e) => {
+      const key = (e as KeyboardEvent).key;
+      if ((key === "Enter" || key === " ") && e.target === slot) { e.preventDefault(); drop(); }
     });
   }
+  function updateCompare(): void {
+    const full = slots().every((slot) => slot.querySelector(".g-card"));
+    $<HTMLButtonElement>("g-compare-check").disabled = !full;
+    $("g-tray").classList.toggle("is-empty", full);
+    $("g-compare-result").textContent = "";
+    $("g-compare-result").className = "g-compare__result";
+  }
   on($("g-compare-check"), "click", () => {
-    const row = $("g-compare-row");
-    const areas = Array.from(row.children).map((c) => plans.find((p) => p.id === Number((c as HTMLElement).dataset.id))!.area);
+    const areas = slots().map((slot) => plans.find((p) => p.id === Number(slot.querySelector<HTMLElement>(".g-card")?.dataset.id))?.area ?? 0);
     const correct = areas.every((a, i) => i === 0 || areas[i - 1]! >= a);
     const result = $("g-compare-result");
     if (correct) {
       result.className = "g-compare__result is-ok";
       result.textContent = "✓ Biggest to smallest!";
-      row.classList.add("is-solved");
+      $("g-slots").classList.add("is-solved");
       window.setTimeout(showRule, 1200);
     } else {
       result.className = "g-compare__result is-wrong";
-      result.textContent = "Not quite. Use the arrows to reorder.";
+      result.textContent = "Not quite. Compare the areas, then drag to swap.";
     }
   });
   function showRule(): void {
     $("g-compare").hidden = true;
-    $("g-compare-row").classList.remove("is-solved");
+    $("g-slots").classList.remove("is-solved");
     cardHandles.forEach((h) => h.destroy());
     cardHandles = [];
     setPhase("done");
@@ -372,6 +508,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
 
   function restart(): void {
     plans.length = 0;
+    farms.length = 0;
     cardHandles.forEach((h) => h.destroy());
     cardHandles = [];
     scene?.resetFarms();
@@ -379,6 +516,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     history.length = 0;
     drawInk();
     $("g-pad").hidden = true;
+    $("g-compare").hidden = true;
     updateGardenState({ phase: "build", plans: [], activePlan: null, transferPassed: false });
     task();
   }

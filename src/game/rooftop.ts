@@ -16,19 +16,31 @@ export interface RooftopHandle {
   hop(): void;
   /** Plant one seed per square on the demo plot, one at a time. */
   plantSeeds(seeds: number, onPlant: (planted: number) => void, onDone: (planted: number) => void): void;
-  /** Draw a farm's fence as two lines: drag out the length, then the width. Reports live values and the final shape. */
-  beginDraw(index: number, onChange: (length: number, width: number) => void, onComplete: (length: number, width: number) => void): void;
+  /** Draw a farm's fence one side at a time: four drags, going round the farm. */
+  beginDraw(index: number, options: DrawOptions): void;
   /** True while a farm can be drawn with a drag gesture (false on the no-WebGL fallback). */
   canDraw(): boolean;
   /** Fill every square of a finished farm with a plant. */
   growFarm(index: number, onDone: () => void): void;
-  /** Grey out a farm Mei isn't currently visiting. */
-  dimFarm(index: number, dim: boolean): void;
+  /** Show a farm and its patch of roof in black and white, so it reads as finished. */
+  setFarmGrey(index: number, grey: boolean): void;
+  /** Glide the camera to one farm, or pull back to see all three when index is null. */
+  focusFarm(index: number | null): void;
   /** Hide and clear all three farm plots, ready to draw again. */
   resetFarms(): void;
   /** Called with Mei's head position in pixels, relative to the scene, whenever it changes. */
   onMeiMove(listener: (x: number, y: number, footY: number) => void): void;
   destroy(): void;
+}
+
+export interface DrawOptions {
+  /** Dotted outline to trace, in metres. */
+  guide: { length: number; width: number } | null;
+  /** Called when a side is let go. Return false to reject it: sides 1–2 are rubbed out, sides 3–4 stay so the student can keep dragging. */
+  check(side: number, metres: number, sides: readonly number[]): boolean;
+  /** Metres of fence used so far, including the side being dragged. */
+  onChange(used: number): void;
+  onComplete(length: number, width: number): void;
 }
 
 const FARM_FENCE = 12;
@@ -65,10 +77,11 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       walkToFarm: (_index, onDone) => onDone?.(),
       hop: () => undefined,
       plantSeeds: (seeds, onPlant, onDone) => { const n = Math.min(seeds, squares); onPlant(n); onDone(n); },
-      beginDraw: (_index, _onChange, onComplete) => onComplete(1, 1),
+      beginDraw: (_index, options) => options.onComplete(1, 1),
       canDraw: () => false,
       growFarm: (_index, onDone) => onDone(),
-      dimFarm: () => undefined,
+      setFarmGrey: () => undefined,
+      focusFarm: () => undefined,
       resetFarms: () => undefined,
       onMeiMove: () => undefined,
       destroy: () => { fallback.remove(); host.classList.remove("rooftop-unavailable"); },
@@ -96,9 +109,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const model = new THREE.Group();
   scene.add(model);
   const camera = new THREE.OrthographicCamera(-12, 12, 8, -8, 0.1, 120);
-  const cameraTarget = new THREE.Vector3(-1.6, 1.88, 0.2);
-  camera.position.copy(cameraTarget).add(new THREE.Vector3(16, 24, 20));
-  camera.lookAt(cameraTarget);
+  const cameraOffset = new THREE.Vector3(16, 24, 20);
 
   const geometries = new Set<THREE.BufferGeometry>();
   const materials = new Set<THREE.Material>();
@@ -496,27 +507,97 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     render();
   }
 
-  /* ---------- The three farm plots, drawn by hand ---------- */
+  /* ---------- The three farm plots, one behind the other, each on its own patch of roof ---------- */
   const FARM_COUNT = 3;
-  const farmSlots = [new THREE.Vector3(-4.3, roofY + 0.015, 0.2), new THREE.Vector3(0, roofY + 0.015, 0.2), new THREE.Vector3(4.3, roofY + 0.015, 0.2)];
-  const farmGroups = farmSlots.map((pos) => { const g = new THREE.Group(); g.position.copy(pos); g.visible = false; model.add(g); return g; });
+  const FARM_X = -3.2;
+  // Each farm's origin is its front-left fence corner; the fence runs +X, then back (-Z), then home.
+  const farmCorners = [4.2, 2.05, -1.95].map((z) => new THREE.Vector3(FARM_X, roofY + 0.015, z));
+  const padWidth = 4.15;
+  const padDepths = [2.1, 3.9, 3.75];
+  const padCentres = farmCorners.map((corner, i) => new THREE.Vector3(FARM_X + 1.625, roofY, corner.z + 0.45 - padDepths[i]! / 2));
+  const farmGroups = farmCorners.map((pos) => { const g = new THREE.Group(); g.position.copy(pos); g.visible = false; model.add(g); return g; });
+  const farmPads = padCentres.map((centre, i) => {
+    const pad = new THREE.Group();
+    pad.position.copy(centre);
+    pad.visible = false;
+    model.add(pad);
+    box(pad, "#d6c39d", 0, 0.035, 0, padWidth + 0.16, 0.03, padDepths[i]! + 0.16);
+    box(pad, "#eadbbb", 0, 0.04, 0, padWidth, 0.03, padDepths[i]!);
+    return pad;
+  });
   const farmCrop: (THREE.Group | null)[] = [null, null, null];
   const farmDims: { length: number; width: number }[] = [{ length: 0, width: 0 }, { length: 0, width: 0 }, { length: 0, width: 0 }];
-  const farmDim: THREE.Mesh[] = farmGroups.map((group) => {
-    const overlayMesh = box(model, "#1c241c", 0, 0.5, 0, 0.1, 1, 0.1);
-    overlayMesh.material = new THREE.MeshBasicMaterial({ color: "#1c241c", transparent: true, opacity: 0.45, depthWrite: false });
-    materials.add(overlayMesh.material);
-    overlayMesh.castShadow = false;
-    overlayMesh.receiveShadow = false;
-    overlayMesh.visible = false;
-    overlayMesh.position.copy(group.position);
-    return overlayMesh;
-  });
+
+  const greyCache = new Map<THREE.Material, THREE.Material>();
+  function greyOf(material: THREE.Material): THREE.Material {
+    let grey = greyCache.get(material);
+    if (!grey) {
+      const colour = (material as THREE.MeshStandardMaterial).color ?? new THREE.Color("#999999");
+      const light = colour.r * 0.2126 + colour.g * 0.7152 + colour.b * 0.0722;
+      grey = new THREE.MeshStandardMaterial({ color: new THREE.Color(light, light, light), roughness: 0.95, metalness: 0, flatShading: true });
+      materials.add(grey);
+      greyCache.set(material, grey);
+    }
+    return grey;
+  }
+  const farmGrey = [false, false, false];
+  function paintGrey(index: number): void {
+    for (const part of [farmGroups[index]!, farmPads[index]!]) {
+      part.traverse((item) => {
+        if (!(item instanceof THREE.Mesh)) return;
+        const original = (item.userData.colour as THREE.Material | undefined) ?? (item.material as THREE.Material);
+        item.userData.colour = original;
+        item.material = farmGrey[index] ? greyOf(original) : original;
+      });
+    }
+  }
+
+  const sideDirs = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1)];
+  const sideOut = [new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0)];
+  function sideStart(sides: readonly number[], side: number): THREE.Vector3 {
+    const point = new THREE.Vector3();
+    for (let i = 0; i < side; i += 1) point.addScaledVector(sideDirs[i]!, (sides[i] ?? 0) * unit);
+    return point;
+  }
+  function fenceSide(parent: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3, metres: number): void {
+    for (let i = 0; i <= metres; i += 1) {
+      const p = from.clone().addScaledVector(dir, i * unit);
+      box(parent, "#d9bb83", p.x, 0.37, p.z, 0.06, 0.46, 0.06);
+      cylinder(parent, "#e7cc9c", p.x, 0.62, p.z, 0, 0.052, 0.08, 4);
+    }
+    const mid = from.clone().addScaledVector(dir, metres * unit / 2);
+    const along = metres * unit + 0.05;
+    for (const y of [0.34, 0.52]) box(parent, "#d9bb83", mid.x, y, mid.z, dir.x ? along : 0.035, 0.038, dir.z ? along : 0.035);
+  }
+
+  const guideGroup = new THREE.Group();
+  guideGroup.visible = false;
+  model.add(guideGroup);
+  const guideMaterial = new THREE.MeshBasicMaterial({ color: "#2f8577" });
+  materials.add(guideMaterial);
+  function showGuide(index: number, guide: { length: number; width: number } | null): void {
+    guideGroup.clear();
+    guideGroup.visible = !!guide;
+    if (!guide) return;
+    guideGroup.position.copy(farmCorners[index]!);
+    const sides = [guide.length, guide.width, guide.length, guide.width];
+    sides.forEach((metres, side) => {
+      const from = sideStart(sides, side);
+      const dir = sideDirs[side]!;
+      for (let i = 0; i < metres * 2; i += 1) {
+        const p = from.clone().addScaledVector(dir, (i + 0.5) * unit / 2);
+        const dash = new THREE.Mesh(boxGeometry, guideMaterial);
+        dash.position.set(p.x, 0.07, p.z);
+        dash.scale.set(dir.x ? unit * 0.28 : 0.07, 0.02, dir.z ? unit * 0.28 : 0.07);
+        guideGroup.add(dash);
+      }
+    });
+  }
 
   function buildPlotInto(parent: THREE.Group, length: number, width: number, harvest: boolean): THREE.Group {
     parent.clear();
     const inner = new THREE.Group();
-    inner.position.set(length * unit / 2, 0, width * unit / 2);
+    inner.position.set(length * unit / 2, 0, -width * unit / 2);
     parent.add(inner);
     const lx = length * unit;
     const wz = width * unit;
@@ -547,54 +628,45 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     return crop;
   }
 
-  function renderFarmEdge(index: number, drawnLength: number): void {
-    const group = farmGroups[index]!;
-    group.clear();
-    group.visible = true;
-    const steps = Math.max(1, Math.round(drawnLength));
-    const lx = steps * unit;
-    const post = (x: number): void => { box(group, "#d9bb83", x, 0.37, 0, 0.06, 0.46, 0.06); cylinder(group, "#e7cc9c", x, 0.62, 0, 0, 0.052, 0.08, 4); };
-    for (let i = 0; i <= steps; i += 1) post(i * unit);
-    for (const y of [0.34, 0.52]) box(group, "#d9bb83", lx / 2, y, 0, lx + 0.05, 0.038, 0.035);
-    render();
-  }
-
-  /* ---------- The draw handle: one reusable handle, repositioned per farm and phase ---------- */
+  /* ---------- The draw handle: one reusable handle at the end of the side being drawn ---------- */
   const controls = new THREE.Group();
   controls.visible = false;
   model.add(controls);
-  const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
-  materials.add(hitMaterial);
   const handleGeometry = geometry("garden-handle", () => new THREE.SphereGeometry(1, 10, 8));
-  const hitGeometry = geometry("garden-hit-target", () => new THREE.SphereGeometry(0.46, 8, 6));
   const knob = mesh(controls, handleGeometry, "#e6b654", 0, 0.58, 0);
   knob.scale.setScalar(0.24);
-  const hit = new THREE.Mesh(hitGeometry, hitMaterial);
-  controls.add(hit);
   const marker = document.createElement("span");
   marker.className = "rooftop-drag-handle";
   marker.style.cssText = "position:absolute;display:grid;place-items:center;width:36px;height:36px;transform:translate(-50%,-50%);border:2px solid #fff9e8;border-radius:50%;background:#e6b654;color:#fffdf4;font:700 19px/1 sans-serif;box-shadow:0 3px 12px #24483830;";
   marker.textContent = "⤢";
   overlay.append(marker);
-  const drawLengthLabel = document.createElement("span");
-  const drawWidthLabel = document.createElement("span");
-  for (const [axis, label] of [["draw-length", drawLengthLabel], ["draw-width", drawWidthLabel]] as const) {
+  const sideLabels = [0, 1, 2, 3].map((side) => {
+    const label = document.createElement("span");
     label.className = "rooftop-dimension";
-    label.dataset.axis = axis;
-    label.style.cssText = "position:absolute;padding:7px 12px;border-radius:9px;transform:translate(-50%,-50%);background:#fff9eeeF;box-shadow:0 2px 12px #25453918;color:#185e54;font:700 15px/1.15 sans-serif;white-space:nowrap;";
+    label.dataset.axis = `side-${side + 1}`;
+    label.style.cssText = "position:absolute;display:none;padding:6px 10px;border-radius:9px;transform:translate(-50%,-50%);background:#fff9eeeF;box-shadow:0 2px 12px #25453918;color:#185e54;font:700 14px/1.15 sans-serif;white-space:nowrap;";
     overlay.append(label);
-  }
+    return label;
+  });
 
   interface DrawState {
     farm: number;
-    phase: "length" | "width";
-    length: number;
-    width: number;
-    onChange: (length: number, width: number) => void;
-    onComplete: (length: number, width: number) => void;
+    sides: number[];
+    current: number;
+    options: DrawOptions;
   }
   let draw: DrawState | null = null;
-  let drag: { pointerId: number; start: THREE.Vector3; length: number; width: number } | null = null;
+  let drag: { pointerId: number; start: THREE.Vector3; current: number } | null = null;
+  const used = (state: DrawState): number => state.sides.reduce((sum, metres) => sum + metres, 0) + state.current;
+  // Sides 3 and 4 can only go back as far as the side opposite them, so the fence always closes.
+  const sideMax = (state: DrawState): number => {
+    const side = state.sides.length;
+    return side === 0 ? 6 : side === 1 ? 5 : state.sides[side - 2]!;
+  };
+  const handleLocal = (state: DrawState): THREE.Vector3 => {
+    const side = state.sides.length;
+    return sideStart(state.sides, side).addScaledVector(sideDirs[side]!, state.current * unit).setY(0.58);
+  };
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(roofY + 0.015 + 0.58));
@@ -603,30 +675,38 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   function updateHandlePosition(): void {
     if (!draw) return;
     const group = farmGroups[draw.farm]!;
-    const local = draw.phase === "length" ? new THREE.Vector3(draw.length * unit, 0.58, 0) : new THREE.Vector3(draw.length * unit, 0.58, draw.width * unit);
+    const local = handleLocal(draw);
     controls.position.copy(group.position);
     knob.position.copy(local);
-    hit.position.copy(local);
     placeOverlay(marker, group.localToWorld(local.clone()));
-    const lengthMid = group.localToWorld(new THREE.Vector3(draw.length * unit / 2, 0.3, -0.35));
-    placeOverlay(drawLengthLabel, lengthMid, -6);
-    drawLengthLabel.textContent = `${draw.length} m`;
-    drawLengthLabel.style.display = "block";
-    if (draw.phase === "width") {
-      const widthMid = group.localToWorld(new THREE.Vector3(draw.length * unit + 0.4, 0.3, draw.width * unit / 2));
-      placeOverlay(drawWidthLabel, widthMid, -6);
-      drawWidthLabel.textContent = `${draw.width} m`;
-      drawWidthLabel.style.display = "block";
-    } else {
-      drawWidthLabel.style.display = "none";
-    }
+    const segments = [...draw.sides, draw.current];
+    sideLabels.forEach((label, side) => {
+      const metres = segments[side] ?? 0;
+      if (!metres) { label.style.display = "none"; return; }
+      const mid = sideStart(segments, side).addScaledVector(sideDirs[side]!, metres * unit / 2).addScaledVector(sideOut[side]!, 0.5).setY(0.3);
+      placeOverlay(label, group.localToWorld(mid), -6);
+      label.textContent = `${metres} m`;
+      label.style.display = "block";
+    });
   }
   function renderDrawPreview(): void {
     if (!draw) return;
-    if (draw.phase === "length") renderFarmEdge(draw.farm, draw.length);
-    else { buildPlotInto(farmGroups[draw.farm]!, Math.max(1, Math.round(draw.length)), Math.max(1, Math.round(draw.width)), false); farmGroups[draw.farm]!.visible = true; }
+    const group = farmGroups[draw.farm]!;
+    group.clear();
+    group.visible = true;
+    const segments = [...draw.sides, draw.current];
+    segments.forEach((metres, side) => { if (metres > 0) fenceSide(group, sideStart(segments, side), sideDirs[side]!, metres); });
     updateHandlePosition();
     render();
+  }
+  function endDraw(): void {
+    draw = null;
+    drag = null;
+    controls.visible = false;
+    guideGroup.visible = false;
+    canvas.style.pointerEvents = "none";
+    marker.style.display = "none";
+    sideLabels.forEach((label) => { label.style.display = "none"; });
   }
 
   function pointRay(event: PointerEvent): void {
@@ -649,7 +729,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     pointRay(event);
     if (!overHandle(event) || !raycaster.ray.intersectPlane(dragPlane, planePoint)) return;
     event.preventDefault();
-    drag = { pointerId: event.pointerId, start: farmGroups[draw.farm]!.worldToLocal(planePoint.clone()), length: draw.length, width: draw.width };
+    drag = { pointerId: event.pointerId, start: farmGroups[draw.farm]!.worldToLocal(planePoint.clone()), current: draw.current };
     canvas.setPointerCapture(event.pointerId);
     canvas.style.cursor = "grabbing";
     host.classList.add("rooftop-dragging");
@@ -660,17 +740,11 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     if (!drag) { canvas.style.cursor = overHandle(event) ? "grab" : "default"; return; }
     if (event.pointerId !== drag.pointerId || !raycaster.ray.intersectPlane(dragPlane, planePoint)) return;
     event.preventDefault();
-    const local = farmGroups[draw.farm]!.worldToLocal(planePoint.clone());
-    if (draw.phase === "length") {
-      const length = Math.max(1, Math.min(9, Math.round(drag.length + (local.x - drag.start.x) / unit)));
-      if (length === draw.length) return;
-      draw.length = length;
-    } else {
-      const width = Math.max(1, Math.min(9, Math.round(drag.width + (local.z - drag.start.z) / unit)));
-      if (width === draw.width) return;
-      draw.width = width;
-    }
-    draw.onChange(draw.length, draw.width);
+    const moved = farmGroups[draw.farm]!.worldToLocal(planePoint.clone()).sub(drag.start).dot(sideDirs[draw.sides.length]!) / unit;
+    const metres = Math.max(0, Math.min(sideMax(draw), Math.round(drag.current + moved)));
+    if (metres === draw.current) return;
+    draw.current = metres;
+    draw.options.onChange(used(draw));
     renderDrawPreview();
   }
   function finishDrag(): void {
@@ -680,21 +754,26 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     if (pointerId !== undefined && canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
     canvas.style.cursor = draw ? "grab" : "default";
     host.classList.remove("rooftop-dragging");
-    if (!draw || !wasDragging) return;
-    if (draw.phase === "length") {
-      draw.phase = "width";
-      draw.width = 1;
-      draw.onChange(draw.length, draw.width);
-      renderDrawPreview();
+    if (!draw || !wasDragging || draw.current === 0) return;
+    const side = draw.sides.length;
+    if (!draw.options.check(side, draw.current, draw.sides)) {
+      if (side < 2) {
+        draw.current = 0;
+        draw.options.onChange(used(draw));
+        renderDrawPreview();
+      }
       return;
     }
-    const { length, width, onComplete } = draw;
-    draw = null;
-    controls.visible = false;
-    canvas.style.pointerEvents = "none";
-    drawLengthLabel.style.display = "none";
-    drawWidthLabel.style.display = "none";
-    onComplete(length, width);
+    draw.sides.push(draw.current);
+    draw.current = 0;
+    if (draw.sides.length < 4) { renderDrawPreview(); return; }
+    const [length, width] = draw.sides as [number, number];
+    const { farm, options } = draw;
+    endDraw();
+    farmDims[farm] = { length, width };
+    buildPlotInto(farmGroups[farm]!, length, width, false);
+    render();
+    options.onComplete(length, width);
   }
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
@@ -721,17 +800,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     }
     marker.style.display = draw ? "grid" : "none";
     if (draw) updateHandlePosition();
-    for (let i = 0; i < FARM_COUNT; i += 1) {
-      const dimMesh = farmDim[i]!;
-      if (!dimMesh.visible) continue;
-      const length = farmDims[i]!.length || 1;
-      const width = farmDims[i]!.width || 1;
-      dimMesh.scale.set(length * unit + 0.3, 0.9, width * unit + 0.3);
-      dimMesh.position.copy(farmGroups[i]!.position);
-      dimMesh.position.x += length * unit / 2;
-      dimMesh.position.y += 0.5;
-      dimMesh.position.z += width * unit / 2;
-    }
   }
 
   const meiHead = new THREE.Vector3();
@@ -775,8 +843,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
   const backOut = (p: number): number => 1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2;
 
-  let currentStage: "meet" | "build" | "compare" | "complete" = "meet";
-
   function walkTo(target: THREE.Vector3, onDone?: () => void, duration = 1400): void {
     const start = mei.position.clone();
     const face = Math.atan2(target.x - start.x, target.z - start.z);
@@ -805,9 +871,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
   function walkIn(onDone?: () => void): void { walkTo(meiEnd, onDone, 2400); }
   function walkToFarm(index: number, onDone?: () => void): void {
-    const spot = farmGroups[index]!.localToWorld(new THREE.Vector3(-0.9, 0, -1.15));
+    // To the right of the farm's patch, away from the corner where the first fence side starts.
+    const spot = new THREE.Vector3(FARM_X + padWidth + 0.75, roofY, farmCorners[index]!.z - 0.2);
     spot.y = roofY;
-    walkTo(spot, onDone, 1100);
+    walkTo(spot, onDone, Math.max(900, Math.min(2200, mei.position.distanceTo(spot) * 200)));
   }
 
   function hop(): void {
@@ -907,33 +974,35 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     });
   }
 
-  function dimFarm(index: number, dim: boolean): void {
-    farmDim[index]!.visible = dim;
+  function setFarmGrey(index: number, grey: boolean): void {
+    farmGrey[index] = grey;
+    paintGrey(index);
     render();
   }
 
   function resetFarms(): void {
+    endDraw();
     for (let i = 0; i < FARM_COUNT; i += 1) {
       farmGroups[i]!.clear();
       farmGroups[i]!.visible = false;
+      farmPads[i]!.visible = false;
       farmCrop[i] = null;
       farmDims[i] = { length: 0, width: 0 };
-      farmDim[i]!.visible = false;
+      farmGrey[i] = false;
+      paintGrey(i);
     }
-    draw = null;
-    drag = null;
-    controls.visible = false;
-    canvas.style.pointerEvents = "none";
-    drawLengthLabel.style.display = "none";
-    drawWidthLabel.style.display = "none";
     render();
   }
 
-  function beginDraw(index: number, onChange: (length: number, width: number) => void, onComplete: (length: number, width: number) => void): void {
-    farmDims[index] = { length: 1, width: 0 };
-    draw = { farm: index, phase: "length", length: 1, width: 0, onChange, onComplete: (length, width) => { farmDims[index] = { length, width }; onComplete(length, width); } };
+  function beginDraw(index: number, options: DrawOptions): void {
+    farmPads[index]!.visible = true;
+    farmGrey[index] = false;
+    paintGrey(index);
+    draw = { farm: index, sides: [], current: 0, options };
+    showGuide(index, options.guide);
     controls.visible = true;
     canvas.style.pointerEvents = "auto";
+    options.onChange(0);
     renderDrawPreview();
   }
 
@@ -966,28 +1035,73 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     render();
   }
 
+  /* ---------- Camera: a target point, how much of the roof to fit, and where on screen the target sits ---------- */
+  interface View { target: THREE.Vector3; frameWidth: number; frameHeight: number; x: number; y: number }
+  type Focus = "meet" | "overview" | number;
+  let focus: Focus = "meet";
+  let aspect = 1;
+  let view: View | null = null;
+  let viewToken = 0;
+  let viewMoving = false;
+  function viewFor(target: Focus): View {
+    const phone = aspect < 0.9;
+    if (target === "meet") return { target: new THREE.Vector3(-1.6, 1.88, 0.2), frameWidth: 12.8, frameHeight: 9.2, x: 0.5, y: phone ? 0.35 : 0.5 };
+    if (target === "overview") return { target: new THREE.Vector3(FARM_X + 1.625, roofY, -0.2), frameWidth: phone ? 11.5 : 13, frameHeight: phone ? 10 : 9.6, x: 0.5, y: phone ? 0.6 : 0.56 };
+    // A little closer than the opening view. The farm sits right of and below centre, clear of Mei's docked bubble.
+    return { target: padCentres[target]!.clone().setY(roofY + 0.3), frameWidth: phone ? 6.8 : 9, frameHeight: phone ? 6.4 : 6.6, x: phone ? 0.56 : 0.6, y: phone ? 0.64 : 0.58 };
+  }
+  function applyView(): void {
+    if (!view) return;
+    const halfHeight = Math.max(view.frameHeight / 2, view.frameWidth / (2 * aspect));
+    const halfWidth = halfHeight * aspect;
+    camera.left = -2 * view.x * halfWidth;
+    camera.right = 2 * (1 - view.x) * halfWidth;
+    camera.top = 2 * view.y * halfHeight;
+    camera.bottom = -2 * (1 - view.y) * halfHeight;
+    camera.position.copy(view.target).add(cameraOffset);
+    camera.lookAt(view.target);
+    camera.updateProjectionMatrix();
+  }
+  function moveCamera(target: Focus): void {
+    focus = target;
+    const to = viewFor(target);
+    const token = ++viewToken;
+    if (!view || reducedMotion.matches) {
+      viewMoving = false;
+      view = to;
+      applyView();
+      render();
+      return;
+    }
+    const from = { ...view, target: view.target.clone() };
+    viewMoving = true;
+    let t0 = 0;
+    run((now) => {
+      if (token !== viewToken || destroyed) return true;
+      if (!t0) t0 = now;
+      const p = Math.min(1, (now - t0) / 1200);
+      const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
+      const mix = (a: number, b: number): number => a + (b - a) * e;
+      view = { target: from.target.clone().lerp(to.target, e), frameWidth: mix(from.frameWidth, to.frameWidth), frameHeight: mix(from.frameHeight, to.frameHeight), x: mix(from.x, to.x), y: mix(from.y, to.y) };
+      applyView();
+      if (p < 1) return false;
+      viewMoving = false;
+      return true;
+    });
+  }
   function resize(): void {
     if (destroyed) return;
     const bounds = host.getBoundingClientRect();
     const width = Math.max(1, Math.round(bounds.width));
     const height = Math.max(1, Math.round(bounds.height || 400));
-    const aspect = width / height;
-    const frameWidth = currentStage === "meet" ? 12.8 : currentStage === "build" || currentStage === "compare" ? 15.8 : 10.6;
-    const frameHeight = currentStage === "meet" ? 9.2 : currentStage === "build" || currentStage === "compare" ? 9.4 : 7.3;
-    const halfHeight = Math.max(frameHeight / 2, frameWidth / (2 * aspect));
-    const building = currentStage === "build" || currentStage === "compare";
-    // While building, leave headroom above the farm row for Mei's speech bubble.
-    const lift = aspect < 0.9 ? halfHeight * (building ? 0.12 : 0.3) : building ? -halfHeight * 0.36 : 0;
-    camera.left = -halfHeight * aspect;
-    camera.right = halfHeight * aspect;
-    camera.top = halfHeight - lift;
-    camera.bottom = -halfHeight - lift;
-    camera.updateProjectionMatrix();
+    aspect = width / height;
     renderer.setSize(width, height, false);
+    if (!viewMoving) view = viewFor(focus);
+    applyView();
     render();
   }
 
-  const resizeObserver = new ResizeObserver(resize);
+  const resizeObserver = new ResizeObserver(() => resize());
   resizeObserver.observe(host);
   const visibilityObserver = new IntersectionObserver((entries) => {
     isVisible = entries.some((entry) => entry.isIntersecting);
@@ -1015,17 +1129,18 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     beginDraw,
     canDraw: () => true,
     growFarm,
-    dimFarm,
+    setFarmGrey,
+    focusFarm: (index) => moveCamera(index ?? "overview"),
     resetFarms,
     onMeiMove(listener) {
       meiListener = listener;
       render();
     },
     setStage(stage) {
-      currentStage = stage;
       garden.visible = stage === "meet";
-      if (stage !== "meet") mei.rotation.y = stage === "complete" ? -0.18 : 0.25;
-      resize();
+      if (stage === "meet") moveCamera("meet");
+      else if (stage !== "build") moveCamera("overview");
+      render();
     },
     showLabels(enabled) {
       labelsVisible = enabled;

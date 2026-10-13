@@ -24,7 +24,6 @@
 .g-bubble.pop{animation:g-pop .35s cubic-bezier(.3,1.6,.5,1)}
 .g-bubble.is-docked{left:1.25rem;top:1.25rem;transition:none;border-radius:18px 18px 18px 4px}
 .g-bubble.is-docked::after{display:none}
-.g-bubble.is-right::after{right:auto;left:var(--tail,28px);margin-left:-9px}
 .g-ask{display:flex;gap:.45rem;width:100%}
 .g-ask input{width:6rem;text-align:center;font:650 1.3rem var(--sans);padding:.4rem .5rem;border:2px solid #cfd8c9;border-radius:10px;background:#fff;min-height:44px}
 .g-ask input:focus{outline:none;border-color:var(--teal)}
@@ -66,17 +65,24 @@
 .g-verdict:not(.is-ok){top:1.25rem;transform:translateX(-50%);grid-auto-flow:column;align-items:center;gap:1rem}
 .g-verdict:not(.is-ok) .g-verdict__mark{width:64px;height:64px;font-size:2.4rem;box-shadow:0 0 0 5px #fffdf8,0 12px 30px -12px #000a}
 
-/* Compare: three 3D cards, reordered to rank area */
-.g-compare{position:absolute;inset:0;z-index:8;display:grid;align-content:center;justify-items:center;gap:.9rem;padding:1rem;overflow:auto;background:#dfe7d6b3;backdrop-filter:blur(3px)}
+/* Compare: drag three 3D cards into ranked boxes */
+.g-compare{position:absolute;inset:0;z-index:8;display:grid;align-content:center;justify-items:center;gap:.8rem;padding:1rem;overflow:auto;background:#dfe7d6b3;backdrop-filter:blur(3px)}
 .g-compare__prompt{margin:0;font:650 1.05rem var(--sans);text-align:center}
-.g-compare__row{display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center}
-.g-compare__row.is-solved .g-card{box-shadow:0 0 0 3px #2e8b57}
-.g-card{display:grid;justify-items:center;gap:.4rem;width:150px;padding:.6rem;background:#fffdf8;border:1px solid #d9dfcf;border-radius:14px;box-shadow:0 10px 26px -18px #17342180}
-.g-card__scene{width:100%;height:120px;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#eef4e4,#dde6d3)}
-.g-card__scene canvas{cursor:grab}
-.g-card__area{margin:0;font:700 1.05rem var(--sans);color:var(--teal)}
-.g-card__moves{display:flex;gap:.4rem}
-.g-card__moves button{width:34px;height:34px;border:1px solid #cfd8c9;border-radius:50%;background:#fff;color:var(--teal);font-weight:700}
+.g-tray{display:flex;gap:.7rem;justify-content:center;min-height:168px;min-width:min(460px,100%);padding:.4rem;border-radius:16px}
+.g-tray.is-empty{min-height:0;padding:0}
+.g-slots{display:flex;gap:.7rem;justify-content:center}
+.g-slot{display:grid;justify-items:center;align-content:start;gap:.35rem;width:150px;min-height:200px;padding:.4rem .4rem .5rem;border:2px dashed #b5c3ad;border-radius:16px;background:#fffdf870;cursor:pointer;transition:background .15s,border-color .15s}
+.g-slot>span{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+.g-slot.is-over{border-color:var(--teal);background:#e9f3ec}
+.g-slots.is-solved .g-slot{border-style:solid;border-color:#2e8b57}
+.g-card{display:grid;justify-items:center;gap:.25rem;width:132px;padding:.45rem;background:#fffdf8;border:1px solid #d9dfcf;border-radius:14px;box-shadow:0 10px 26px -18px #17342180;touch-action:none;user-select:none;cursor:grab}
+.g-card.is-lifted{position:relative;z-index:20;cursor:grabbing;box-shadow:0 22px 40px -16px #17342199}
+.g-card.is-picked{outline:3px solid var(--teal);outline-offset:2px}
+.g-card:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.g-card__scene{width:100%;height:96px;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#eef4e4,#dde6d3)}
+.g-card__scene canvas{cursor:ew-resize}
+.g-card__area{margin:0;font:700 .95rem var(--sans);color:var(--teal)}
+.g-card__grip{margin:0;font-size:.72rem;color:var(--ink-soft)}
 .g-compare__result{margin:0;min-height:1.3em;font-size:.95rem;font-weight:600}
 .g-compare__result.is-ok{color:#2e8b57}
 .g-compare__result.is-wrong{color:#c4473a}
@@ -123,7 +129,8 @@
   .g-bubble p{font-size:.92rem}
   .g-bubble.is-below::after{top:-11px;bottom:auto;right:auto;left:var(--tail,50%);margin-left:-9px;transform:rotate(225deg)}
   .g-replies>button{min-height:38px;padding:.45rem .95rem;font-size:.85rem}
-  .g-stack{left:.5rem;top:.5rem;bottom:auto;padding:.45rem .55rem;gap:.3rem;border-radius:10px}
+  .g-bubble.is-docked{left:.5rem;top:.5rem}
+  .g-stack{left:.5rem;bottom:.5rem;padding:.45rem .55rem;gap:.3rem;border-radius:10px}
   .g-planks{--pw:17px;--ph:6px;gap:2px;width:calc(var(--pw)*4 + 6px)}
   .g-stack p{font-size:.7rem}
   .g-seeds{top:.5rem;right:.5rem;padding:.25rem .65rem .25rem .5rem;font-size:.72rem}
@@ -139,9 +146,12 @@
   .g-pad__q{font-size:1rem}
   .g-compare{padding:.5rem;place-items:start center}
   .g-compare__prompt{font-size:.92rem}
-  .g-card{width:104px;padding:.45rem}
-  .g-card__scene{height:88px}
-  .g-card__area{font-size:.88rem}
-  .g-card__moves button{width:28px;height:28px}
+  .g-tray{min-height:140px;gap:.4rem}
+  .g-slots{gap:.4rem}
+  .g-slot{width:110px;min-height:168px;padding:.3rem}
+  .g-slot>span{font-size:.62rem}
+  .g-card{width:100px;padding:.35rem}
+  .g-card__scene{height:72px}
+  .g-card__area{font-size:.8rem}
 }
 @media(prefers-reduced-motion:reduce){.g *{animation:none!important;transition:none!important}}
