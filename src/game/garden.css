@@ -101,7 +101,10 @@
 
 @media(max-width:560px){
   .g-full{display:none}
-  .g-world{min-height:540px}
+  .g-world{min-height:640px}
+  /* After the intro, Mei's bubble gets its own strip under the scene so it never covers the garden. */
+  .g:not([data-phase=meet]) #rooftop-scene{bottom:184px}
+  .g:not([data-phase=meet]) .g-world::after{content:"";position:absolute;left:0;right:0;bottom:0;height:184px;background:#e4ebdd;border-top:1px solid #cfd9c6;z-index:1}
   .g-bubble{padding:.7rem .85rem .8rem}
   .g-bubble p{font-size:.92rem}
   .g-bubble.is-docked{left:.5rem;right:.5rem;top:auto;bottom:.5rem;width:auto;border-radius:16px}

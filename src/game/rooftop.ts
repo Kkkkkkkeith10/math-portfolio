@@ -733,12 +733,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const frameWidth = currentStage === "meet" ? 12.8 : 10.6;
     const frameHeight = currentStage === "meet" ? 9.2 : 7.3;
     const halfHeight = Math.max(frameHeight / 2, frameWidth / (2 * aspect));
-    // On tall phone screens Mei's bubble sits along the bottom, so lift the garden into the upper part.
-    const lift = aspect < 0.9 && currentStage !== "meet" ? halfHeight * 0.32 : 0;
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
-    camera.top = halfHeight - lift;
-    camera.bottom = -halfHeight - lift;
+    camera.top = halfHeight;
+    camera.bottom = -halfHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     render();
