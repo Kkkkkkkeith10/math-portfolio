@@ -51,7 +51,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   let length = 3;
   let width = 2;
   let building = false;
-  let prompt = "";
   let found36 = false;
   let askedWhy = false;
   let beatTries = 0;
@@ -137,7 +136,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function task(): void {
     setPhase("build");
     updateGardenState({ phase: "build" });
-    scene?.setStage("build");
     length = 3;
     width = 2;
     $("g-stack").hidden = false;
@@ -148,9 +146,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   /* ---------- Build: Mei's bubble is the only control ---------- */
   function unlock(): void {
     building = true;
-    prompt = "";
     scene?.setInteractive(true, (l, w) => { if (l === length && w === width) return; length = l; width = w; changed(); });
-    buildPrompt();
+    hold();
   }
   function lock(): void {
     building = false;
@@ -171,7 +168,12 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     $("g-seeds-left").hidden = true;
     renderStack();
     scene?.updateGarden(length, width, false);
-    if (building) buildPrompt();
+    if (!building) return;
+    const labels = root.querySelectorAll<HTMLElement>(".g-steppers b");
+    if (labels[0]) labels[0].textContent = `${length} m`;
+    if (labels[1]) labels[1].textContent = `${width} m`;
+    // The seed question belongs to one shape. Resizing means they check the fence again.
+    if (building && $("g-replies").querySelector(".g-ask")) hold();
   }
   function steppers(): HTMLElement {
     const box = document.createElement("div");
@@ -182,24 +184,30 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       row.querySelectorAll<HTMLButtonElement>("button").forEach((b) => b.addEventListener("click", () => {
         const v = Math.max(1, Math.min(11, (axis === "l" ? length : width) + Number(b.dataset.d)));
         if (axis === "l") length = v; else width = v;
-        prompt = "";
         changed();
       }));
       box.append(row);
     }
     return box;
   }
-  function buildPrompt(): void {
+  /** Mei stays quiet while the garden changes. She only speaks when the student taps OK. */
+  function hold(): void {
+    const line = found36 ? "Make a garden with more than 36, then tap OK." : plans.length ? "Try a new shape, then tap OK." : "Drag the corners, then tap OK.";
+    say(line, [{ label: "OK", then: checkFence }], canDrag() ? undefined : steppers());
+  }
+  function checkFence(): void {
     const fence = fenceUsed();
-    const state = fence > FENCE ? "over" : fence < FENCE ? "short" : tried(length, width) ? "tried" : "ready";
-    const id = `${state}:${state === "ready" || state === "tried" ? key(length, width) : ""}:${canDrag() ? "" : `${length}x${width}`}`;
-    if (id === prompt) return;
-    prompt = id;
     const extra = canDrag() ? undefined : steppers();
-    if (state === "over") say(`That needs ${fence} m. I only have <b>24 m</b>!`, [], extra);
-    else if (state === "short") say(found36 ? "Find a shape with <b>more than 36</b>. Use all 24 m." : plans.length ? "Try a new shape. Use all <b>24 m</b>." : "I have <b>24 m</b> of fence. Drag the corners to use all of it.", [], extra);
-    else if (state === "tried") say(`You tried ${length} × ${width}. Try a new shape.`, [], extra);
-    else askSeeds("All 24 m used! <b>How many seeds</b> should I plant?", extra);
+    if (fence !== FENCE) {
+      say(fence > FENCE ? `That's <b>${fence} m</b>. I only have 24!` : `That's <b>${fence} m</b>. ${FENCE - fence} m of fence is left.`, [{ label: "OK", then: checkFence }], extra);
+      return;
+    }
+    if (tried(length, width)) {
+      say(`You tried ${length} × ${width}. Try a new shape.`, [{ label: "OK", then: checkFence }], extra);
+      return;
+    }
+    const goal = found36 ? " More than 36, remember." : "";
+    askSeeds(`All 24 m used! <b>How many seeds</b> should I plant?${goal}`, extra);
   }
   function askSeeds(text: string, extra?: HTMLElement): void {
     const form = document.createElement("form");
@@ -253,7 +261,6 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       verdict(false, seeds < area ? `Out of seeds! <b>${area - planted}</b> squares are empty.` : `<b>${seeds - area}</b> seeds left over.`);
       building = true;
       scene?.setInteractive(true, (l, w) => { if (l === length && w === width) return; length = l; width = w; changed(); });
-      prompt = `retry:${key(length, width)}`;
       askSeeds(seeds < area ? `We ran out! It's more than ${seeds}. Count again.` : `Too many! It's not ${seeds}. Count again.`);
       return;
     }
