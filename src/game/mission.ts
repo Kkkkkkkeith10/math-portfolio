@@ -65,6 +65,8 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   const boardHeight = 260;
   let meiX = 0;
   let meiY = 0;
+  let meiFoot = 0;
+  const phone = window.matchMedia("(max-width: 560px)");
 
   const key = (l: number, w: number): string => `${Math.max(l, w)}x${Math.min(l, w)}`;
   const tried = (l: number, w: number): boolean => plans.some((p) => key(p.length, p.width) === key(l, w));
@@ -75,12 +77,23 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   function placeBubble(): void {
     const bubble = $("g-bubble");
     if (bubble.hidden) return;
-    const docked = root.dataset.phase !== "meet";
-    bubble.classList.toggle("is-docked", docked);
-    if (docked) { bubble.style.left = ""; bubble.style.top = ""; return; }
     const w = world.clientWidth;
     const bw = bubble.offsetWidth;
     const bh = bubble.offsetHeight;
+    if (phone.matches) {
+      // Phones: the bubble comes from Mei's mouth, hangs just below her and points up at her.
+      bubble.classList.remove("is-docked");
+      bubble.classList.add("is-below");
+      const left = Math.max(8, Math.min(w - bw - 8, meiX - bw / 2));
+      bubble.style.left = `${left}px`;
+      bubble.style.top = `${Math.min(world.clientHeight - bh - 8, meiFoot + 6)}px`;
+      bubble.style.setProperty("--tail", `${Math.max(24, Math.min(bw - 24, meiX - left))}px`);
+      return;
+    }
+    bubble.classList.remove("is-below");
+    const docked = root.dataset.phase !== "meet";
+    bubble.classList.toggle("is-docked", docked);
+    if (docked) { bubble.style.left = ""; bubble.style.top = ""; return; }
     bubble.style.left = `${Math.max(12, Math.min(w - bw - 12, meiX - bw + 40))}px`;
     bubble.style.top = `${Math.max(12, meiY - bh - 14)}px`;
   }
@@ -432,7 +445,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     scene.updateGarden(length, width, false);
     scene.setFenceLeft(FENCE - fenceUsed());
     scene.setStage("meet");
-    scene.onMeiMove((x, y) => { meiX = x; meiY = y; placeBubble(); });
+    scene.onMeiMove((x, y, foot) => { meiX = x; meiY = y; meiFoot = foot; placeBubble(); });
     intro();
   }).catch(() => {
     if (destroyed) return;

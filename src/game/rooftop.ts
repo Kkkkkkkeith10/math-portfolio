@@ -13,7 +13,7 @@ export interface RooftopHandle {
   /** Plant one seed per square, one at a time, until the seeds or the squares run out. */
   plantSeeds(seeds: number, onPlant: (planted: number) => void, onDone: (planted: number) => void): void;
   /** Called with Mei's head position in pixels, relative to the scene, whenever it changes. */
-  onMeiMove(listener: (x: number, y: number) => void): void;
+  onMeiMove(listener: (x: number, y: number, footY: number) => void): void;
   destroy(): void;
 }
 
@@ -420,7 +420,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   let isVisible = true;
   let renderId = 0;
   let plantToken = 0;
-  let meiListener: ((x: number, y: number) => void) | null = null;
+  let meiListener: ((x: number, y: number, footY: number) => void) | null = null;
   /** Running animations. Each returns true when it has finished. */
   const anims = new Set<(now: number) => boolean>();
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -586,7 +586,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     renderer.render(scene, camera);
     if (meiListener) {
       mei.localToWorld(meiHead.set(0, 2.25, 0)).project(camera);
-      meiListener((meiHead.x + 1) * canvas.clientWidth / 2, (1 - meiHead.y) * canvas.clientHeight / 2);
+      const headX = (meiHead.x + 1) * canvas.clientWidth / 2;
+      const headY = (1 - meiHead.y) * canvas.clientHeight / 2;
+      mei.localToWorld(meiHead.set(0, 0, 0)).project(camera);
+      meiListener(headX, headY, (1 - meiHead.y) * canvas.clientHeight / 2);
     }
   }
   function loop(now: number): void {
@@ -733,10 +736,12 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const frameWidth = currentStage === "meet" ? 12.8 : 10.6;
     const frameHeight = currentStage === "meet" ? 9.2 : 7.3;
     const halfHeight = Math.max(frameHeight / 2, frameWidth / (2 * aspect));
+    // On tall phone screens, raise the garden and Mei so Mei's bubble fits under her without covering the garden.
+    const lift = aspect < 0.9 ? halfHeight * 0.3 : 0;
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
-    camera.top = halfHeight;
-    camera.bottom = -halfHeight;
+    camera.top = halfHeight - lift;
+    camera.bottom = -halfHeight - lift;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     render();
