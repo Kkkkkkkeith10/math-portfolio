@@ -128,8 +128,9 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     scene.walkIn(() => say("Hi! I'm Auntie Mei. Can you help with my garden?", [{ label: "Sure!", then: check }]));
   }
   function check(): void {
+    scene?.showLabels(true);
     scene?.updateGarden(3, 2, true);
-    say("Each square grows one plant. How many plants fit in this garden?", [
+    say("Each square grows one plant. How many plants fit in this <b>3 m × 2 m</b> garden?", [
       { label: "5", then: () => say("Count the squares: 3 × 2 = <b>6</b>.", [{ label: "Oh, 6!", then: task }]) },
       { label: "6", then: () => say("Yes! 3 × 2 = <b>6</b>.", [{ label: "Next", then: task }]) },
     ]);

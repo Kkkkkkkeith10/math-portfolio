@@ -4,6 +4,8 @@ export interface RooftopHandle {
   updateGarden(length: number, width: number, harvest: boolean): void;
   setStage(stage: "meet" | "build" | "compare" | "transfer" | "complete"): void;
   setInteractive(enabled: boolean, onResize?: (length: number, width: number) => void): void;
+  /** Show the length and width labels without the drag handle. */
+  showLabels(enabled: boolean): void;
   /** The plank pile beside the workbench shows one plank per metre of fence still unused. */
   setFenceLeft(metres: number): void;
   /** Mei walks from the hut to the garden. */
@@ -42,6 +44,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       updateGarden: (length, width) => { squares = length * width; },
       setStage: () => undefined,
       setInteractive: () => undefined,
+      showLabels: () => undefined,
       setFenceLeft: () => undefined,
       walkIn: (onDone) => onDone?.(),
       hop: () => undefined,
@@ -414,6 +417,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   let currentWidth = 4;
   let currentStage: "meet" | "build" | "compare" | "transfer" | "complete" = "meet";
   let interactive = false;
+  let labelsVisible = false;
   let resizeGarden: ((length: number, width: number) => void) | undefined;
   let cropGroup: THREE.Group | null = null;
   let destroyed = false;
@@ -493,10 +497,13 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   function updateOverlay(): void {
     model.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
-    overlay.style.display = interactive ? "block" : "none";
-    if (!interactive) return;
+    const show = interactive || labelsVisible;
+    overlay.style.display = show ? "block" : "none";
+    if (!show) return;
     for (const [axis, knob] of handles) {
-      placeOverlay(markers.get(axis)!, knob.getWorldPosition(new THREE.Vector3()));
+      const marker = markers.get(axis)!;
+      marker.style.display = interactive ? "grid" : "none";
+      if (interactive) placeOverlay(marker, knob.getWorldPosition(new THREE.Vector3()));
     }
     const lengthMidpoint = new THREE.Vector3(0, 0.3, -currentWidth * unit / 2 - 0.27);
     const widthMidpoint = new THREE.Vector3(-currentLength * unit / 2 - 0.35, 0.3, 0);
@@ -842,6 +849,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       canvas.style.cursor = enabled ? "grab" : "default";
       if (!enabled) finishDrag();
       updateControlPositions();
+      render();
+    },
+    showLabels(enabled) {
+      labelsVisible = enabled;
       render();
     },
     destroy() {
