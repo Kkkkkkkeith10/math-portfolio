@@ -427,7 +427,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
 
   // These controls are actual raycastable 3D assets. The DOM markers simply make
   // their screen positions and dimension values readable at every pixel density.
-  type DragAxis = "length" | "width" | "corner";
+  type DragAxis = "corner";
   const controls = new THREE.Group();
   controls.position.copy(garden.position);
   controls.visible = false;
@@ -446,23 +446,20 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   overlay.setAttribute("aria-hidden", "true");
   host.append(overlay);
   const markers = new Map<DragAxis, HTMLSpanElement>();
-  for (const axis of ["length", "width", "corner"] as const) {
-    const color = axis === "corner" ? "#e6b654" : "#1f7a6d";
-    const knob = mesh(controls, handleGeometry, color, 0, 0.58, 0);
-    knob.scale.setScalar(axis === "corner" ? 0.24 : 0.21);
-    handles.set(axis, knob);
-    const hit = new THREE.Mesh(hitGeometry, hitMaterial);
-    hit.userData.axis = axis;
-    controls.add(hit);
-    hitMeshes.push(hit);
-    const marker = document.createElement("span");
-    marker.className = "rooftop-drag-handle";
-    marker.dataset.axis = axis;
-    marker.style.cssText = `position:absolute;display:grid;place-items:center;width:36px;height:36px;transform:translate(-50%,-50%);border:2px solid #fff9e8;border-radius:50%;background:${color};color:#fffdf4;font:700 19px/1 sans-serif;box-shadow:0 3px 12px #24483830;`;
-    marker.textContent = axis === "corner" ? "⤢" : axis === "length" ? "↔" : "↕";
-    overlay.append(marker);
-    markers.set(axis, marker);
-  }
+  const knob = mesh(controls, handleGeometry, "#e6b654", 0, 0.58, 0);
+  knob.scale.setScalar(0.24);
+  handles.set("corner", knob);
+  const hit = new THREE.Mesh(hitGeometry, hitMaterial);
+  hit.userData.axis = "corner";
+  controls.add(hit);
+  hitMeshes.push(hit);
+  const marker = document.createElement("span");
+  marker.className = "rooftop-drag-handle";
+  marker.dataset.axis = "corner";
+  marker.style.cssText = "position:absolute;display:grid;place-items:center;width:36px;height:36px;transform:translate(-50%,-50%);border:2px solid #fff9e8;border-radius:50%;background:#e6b654;color:#fffdf4;font:700 19px/1 sans-serif;box-shadow:0 3px 12px #24483830;";
+  marker.textContent = "⤢";
+  overlay.append(marker);
+  markers.set("corner", marker);
   const lengthLabel = document.createElement("span");
   const widthLabel = document.createElement("span");
   for (const [axis, label] of [["length", lengthLabel], ["width", widthLabel]] as const) {
@@ -480,8 +477,6 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   function updateControlPositions(): void {
     const lx = currentLength * unit;
     const wz = currentWidth * unit;
-    handles.get("length")!.position.set(lx / 2, 0.58, 0);
-    handles.get("width")!.position.set(0, 0.58, wz / 2);
     handles.get("corner")!.position.set(lx / 2, 0.58, wz / 2);
     for (const hit of hitMeshes) hit.position.copy(handles.get(hit.userData.axis as DragAxis)!.position);
     lengthLabel.textContent = `${currentLength} m`;
@@ -560,8 +555,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const local = garden.worldToLocal(planePoint.clone());
     // The plot grows symmetrically about its fixed centre, keeping it on the roof.
     // Starting with pointer deltas avoids a jump when a handle is grabbed off-centre.
-    const length = drag.axis === "width" ? drag.length : Math.max(1, Math.min(11, Math.round(drag.length + 2 * (local.x - drag.start.x) / unit)));
-    const width = drag.axis === "length" ? drag.width : Math.max(1, Math.min(11, Math.round(drag.width + 2 * (local.z - drag.start.z) / unit)));
+    const length = Math.max(1, Math.min(11, Math.round(drag.length + 2 * (local.x - drag.start.x) / unit)));
+    const width = Math.max(1, Math.min(11, Math.round(drag.width + 2 * (local.z - drag.start.z) / unit)));
     if (length === currentLength && width === currentWidth) return;
     updateGarden(length, width, false);
     resizeGarden?.(length, width);

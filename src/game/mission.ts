@@ -14,7 +14,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   <div class="g" data-phase="meet">
     <div class="g-world">
       <button type="button" class="g-full" id="g-full" aria-pressed="false">⛶ Full screen</button>
-      <div id="rooftop-scene" role="group" aria-label="Mei's rooftop garden. Drag the round handles to change the size of the garden." data-lenis-prevent></div>
+      <div id="rooftop-scene" role="group" aria-label="Mei's rooftop garden. Drag the corner handle to change the size of the garden." data-lenis-prevent></div>
       <div class="g-bubble" id="g-bubble" hidden aria-live="polite"><b>Mei</b><p id="g-say"></p><div class="g-replies" id="g-replies"></div></div>
       <div class="g-stack" id="g-stack" hidden aria-live="polite"><div class="g-planks" id="g-planks" aria-hidden="true">${"<i></i>".repeat(FENCE)}</div><p id="g-stack-text"></p></div>
       <div class="g-seeds" id="g-seeds-left" hidden aria-live="polite"><span aria-hidden="true">🌱</span><b id="g-seed-n">0</b><small>left</small></div>
