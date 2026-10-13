@@ -195,7 +195,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   /** Mei stays quiet while the garden changes. OK appears only after the student drags. */
   function hold(): void {
     awaitingDrag = true;
-    const line = found36 ? "Make a garden with more than 36." : plans.length ? "Try a new shape." : "Drag the corners.";
+    const line = found36 ? "Make a garden with more than 36." : plans.length ? "Try a new shape." : "Help me build a farm with <b>24 m</b> of fence.";
     say(line, [], canDrag() ? undefined : steppers());
   }
   function showOk(): void {
