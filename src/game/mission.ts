@@ -206,11 +206,15 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     for (let i = 0; i < index; i += 1) scene?.setFarmGrey(i, true);
     scene?.setFenceLeft(FARM_FENCE);
     scene?.focusFarm(index);
-    scene?.walkToFarm(index, () => {
+    const draw = (): void => {
       $("g-stack").hidden = false;
       renderFenceText(FARM_FENCE);
       say(leadFor(index), []);
       beginDrawing(index);
+    };
+    scene?.walkToFarm(index, () => {
+      if (index === 0) say("Are you ready to help me plan?", [{ label: "OK!", then: draw }]);
+      else draw();
     });
   }
   function beginDrawing(index: number): void {

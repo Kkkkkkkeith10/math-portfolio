@@ -1249,7 +1249,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       group.visible = true;
       group.position.set(padCentres[1]!.x - size.length * fu / 2, roofY + 0.015, padCentres[1]!.z - size.width * fu / 2);
       areaWinner = size === best;
-      areaText = `${size.length} m × ${size.width} m = ${size.length * size.width} m²${areaWinner ? " 👑" : ""}`;
+      areaText = `${size.length * size.width} m²`;
       crown.visible = areaWinner;
     };
     const centre = (): THREE.Vector3 => group.localToWorld(new THREE.Vector3(farmDims[index]!.length * fu / 2, 1.45, farmDims[index]!.width * fu / 2));
@@ -1262,16 +1262,19 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     }
     const SINK = 320;
     const RISE = 560;
-    const HOLD = 1150;
-    const STEP = SINK + RISE + HOLD;
+    // Loops until the farms are reset; the biggest area stays up longest.
+    const lengths = sizes.map((size) => SINK + RISE + (size === best ? 3400 : 1150));
+    const cycle = lengths.reduce((a, b) => a + b, 0);
     let t0 = 0;
     let shown = -1;
+    let told = false;
     run((now) => {
       if (destroyed || featured !== index) return true;
       if (!t0) t0 = now;
       const t = now - t0;
-      const step = Math.min(sizes.length - 1, Math.floor(t / STEP));
-      const local = t - step * STEP;
+      let local = t % cycle;
+      let step = 0;
+      while (local >= lengths[step]!) { local -= lengths[step]!; step += 1; }
       if (local < SINK && step !== shown) {
         // The old fence sinks into the roof before the planks come back up in the new shape.
         group.scale.set(1, Math.max(0.01, 1 - local / SINK), 1);
@@ -1288,10 +1291,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
         crown.rotation.y = now / 900;
         crown.scale.setScalar(Math.max(0.01, backOut(pop)) * 1.15);
       }
-      if (step < sizes.length - 1 || local < SINK + RISE + 700) return false;
-      group.scale.set(1, 1, 1);
-      onDone();
-      return true;
+      if (!told && areaWinner && local >= SINK + RISE + 700) { told = true; onDone(); }
+      return false;
     });
   }
 
