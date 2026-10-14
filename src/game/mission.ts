@@ -549,7 +549,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       if (scene) scene.featureFarm(bestIndex, () => scene?.walkToFarm(1, () => scene?.showcaseAreas(sizes, answer)));
       else answer();
     };
-    const paperFirst = (): void => say("Now a real TSA-style question. Grab a pen and <b>try it on paper first</b>. Then show your working on the grid.", [{ label: "I'm ready", then: openPad }]);
+    const paperFirst = (): void => say("Now a real TSA-style question. Try it on the <b>grid paper</b>, and show your working.", [{ label: "I'm ready", then: openPad }]);
     say(`All three farms use the same <b>12 m</b> of fence, but their areas are different: ${areas[0]}, ${areas[1]} and ${areas[2]}.`, [{ label: "Why?", then: showBest }]);
   }
 

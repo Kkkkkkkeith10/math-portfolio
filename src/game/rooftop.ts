@@ -636,13 +636,14 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const gridGroup = new THREE.Group();
   gridGroup.visible = false;
   model.add(gridGroup);
-  const gridMaterial = new THREE.MeshBasicMaterial({ color: "#b7a47c", transparent: true, opacity: 0.38 });
+  const gridMaterial = new THREE.MeshBasicMaterial({ color: "#a48a5f", transparent: true, opacity: 0.45 });
   materials.add(gridMaterial);
   for (let i = 0; i <= GRID; i += 1) {
     for (const alongX of [true, false]) {
       const line = new THREE.Mesh(boxGeometry, gridMaterial);
-      line.position.set(alongX ? GRID * fu / 2 : i * fu, 0.02, alongX ? i * fu : GRID * fu / 2);
-      line.scale.set(alongX ? GRID * fu : 0.014, 0.004, alongX ? 0.014 : GRID * fu);
+      // Must sit above the plot's floor tile (its top is 0.04 above the grid origin).
+      line.position.set(alongX ? GRID * fu / 2 : i * fu, 0.05, alongX ? i * fu : GRID * fu / 2);
+      line.scale.set(alongX ? GRID * fu : 0.02, 0.004, alongX ? 0.02 : GRID * fu);
       gridGroup.add(line);
     }
   }
