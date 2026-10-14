@@ -814,6 +814,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   function endDraw(): void {
     draw = null;
     drag = null;
+    topDown = false;
     controls.visible = false;
     guideGroup.visible = false;
     previewGroup.clear();
@@ -869,6 +870,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     canvas.style.pointerEvents = "none";
     canvas.style.cursor = "default";
     renderDrawPreview();
+    topDown = false;
+    moveCamera(draw.farm);
     // The grid starts at a corner, so a closed four-sided path is always [0, L] × [0, W].
     const points = draw.sides.map((_s, i) => tipOf(draw!.sides, i + 1));
     const length = Math.round(Math.max(...points.map((p) => p.x)));
@@ -1195,6 +1198,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     canvas.style.pointerEvents = "auto";
     options.onChange(0);
     renderDrawPreview();
+    topDown = true;
+    moveCamera(index);
   }
 
   let flyToken = 0;
@@ -1331,21 +1336,31 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
 
   /* ---------- Camera: a target point, how much of the roof to fit, and where on screen the target sits ---------- */
-  interface View { target: THREE.Vector3; frameWidth: number; frameHeight: number; x: number; y: number }
+  /** top blends the usual 3D angle (0) into looking straight down (1), so a fence is drawn on a flat grid. */
+  interface View { target: THREE.Vector3; frameWidth: number; frameHeight: number; x: number; y: number; top: number }
   type Focus = "meet" | "overview" | number;
   let focus: Focus = "meet";
+  let topDown = false;
   let aspect = 1;
   let view: View | null = null;
   let viewToken = 0;
   let viewMoving = false;
   function viewFor(target: Focus): View {
     const phone = aspect < 0.9;
-    if (target === "meet") return { target: new THREE.Vector3(-1.6, 1.88, 0.2), frameWidth: 12.8, frameHeight: 9.2, x: phone ? 0.5 : 0.44, y: phone ? 0.35 : 0.5 };
-    if (target === "overview") return { target: new THREE.Vector3(-1.6, roofY, -0.1), frameWidth: phone ? 11.5 : 13, frameHeight: phone ? 10 : 9.6, x: 0.5, y: phone ? 0.6 : 0.56 };
+    if (target === "meet") return { target: new THREE.Vector3(-1.6, 1.88, 0.2), frameWidth: 12.8, frameHeight: 9.2, x: phone ? 0.5 : 0.44, y: phone ? 0.35 : 0.5, top: 0 };
+    if (target === "overview") return { target: new THREE.Vector3(-1.6, roofY, -0.1), frameWidth: phone ? 11.5 : 13, frameHeight: phone ? 10 : 9.6, x: 0.5, y: phone ? 0.6 : 0.56, top: 0 };
+    // Drawing: straight down onto the plot, filling the screen below Mei's docked speech bubble.
+    if (topDown) return { target: padCentres[target]!.clone(), frameWidth: phone ? 4.3 : 5.6, frameHeight: phone ? 4.3 : 5.2, x: phone ? 0.5 : 0.56, y: phone ? 0.6 : 0.56, top: 1 };
     // A little closer than the opening view, the same for every plot. The plot sits right of and below centre,
     // leaving room on the left for Mei and her speech bubble above her.
-    return { target: padCentres[target]!.clone().setY(roofY + 0.3), frameWidth: phone ? 6.4 : 8.4, frameHeight: phone ? 6 : 6.2, x: phone ? 0.6 : 0.62, y: phone ? 0.68 : 0.62 };
+    return { target: padCentres[target]!.clone().setY(roofY + 0.3), frameWidth: phone ? 6.4 : 8.4, frameHeight: phone ? 6 : 6.2, x: phone ? 0.6 : 0.62, y: phone ? 0.68 : 0.62, top: 0 };
   }
+  const offsetLength = cameraOffset.length();
+  const sideAzimuth = Math.atan2(cameraOffset.x, cameraOffset.z);
+  const sideElevation = Math.asin(cameraOffset.y / offsetLength);
+  // Just short of vertical, so the camera's up direction stays well defined and the grid stays square to the screen.
+  const downElevation = Math.PI / 2 - 0.01;
+  const viewOffset = new THREE.Vector3();
   function applyView(): void {
     if (!view) return;
     const halfHeight = Math.max(view.frameHeight / 2, view.frameWidth / (2 * aspect));
@@ -1354,7 +1369,10 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     camera.right = 2 * (1 - view.x) * halfWidth;
     camera.top = 2 * view.y * halfHeight;
     camera.bottom = -2 * (1 - view.y) * halfHeight;
-    camera.position.copy(view.target).add(cameraOffset);
+    const azimuth = sideAzimuth * (1 - view.top);
+    const elevation = sideElevation + (downElevation - sideElevation) * view.top;
+    viewOffset.set(Math.sin(azimuth) * Math.cos(elevation), Math.sin(elevation), Math.cos(azimuth) * Math.cos(elevation)).multiplyScalar(offsetLength);
+    camera.position.copy(view.target).add(viewOffset);
     camera.lookAt(view.target);
     camera.updateProjectionMatrix();
   }
@@ -1378,7 +1396,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       const p = Math.min(1, (now - t0) / 1200);
       const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
       const mix = (a: number, b: number): number => a + (b - a) * e;
-      view = { target: from.target.clone().lerp(to.target, e), frameWidth: mix(from.frameWidth, to.frameWidth), frameHeight: mix(from.frameHeight, to.frameHeight), x: mix(from.x, to.x), y: mix(from.y, to.y) };
+      view = { target: from.target.clone().lerp(to.target, e), frameWidth: mix(from.frameWidth, to.frameWidth), frameHeight: mix(from.frameHeight, to.frameHeight), x: mix(from.x, to.x), y: mix(from.y, to.y), top: mix(from.top, to.top) };
       applyView();
       if (p < 1) return false;
       viewMoving = false;

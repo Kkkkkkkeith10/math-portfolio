@@ -85,8 +85,17 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     if (shifted >= 8) return { left: shifted, top };
     return { left, top };
   }
+  /** While a fence is drawn from above, Mei is off-screen, so her bubble docks in the top-left corner. */
+  let docked = false;
   function placeBubble(): void {
     const bubble = $("g-bubble");
+    bubble.classList.toggle("is-docked", docked);
+    if (docked) {
+      bubble.classList.remove("is-tail", "is-below");
+      bubble.style.left = "";
+      bubble.style.top = "";
+      return;
+    }
     if (bubble.hidden) return;
     const w = world.clientWidth;
     const bw = bubble.offsetWidth;
@@ -205,11 +214,15 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   }
   function beginDrawing(index: number): void {
     if (!canDraw()) { manualDraw(index); return; }
+    docked = true;
+    placeBubble();
     scene!.beginDraw(index, {
       guide: index === 0 ? { length: 4, width: 2 } : null,
       onChange: (drawn) => renderFenceText(FARM_FENCE - drawn),
       onClose: (l, w) => {
+        docked = false;
         $("g-bubble").hidden = true;
+        placeBubble();
         scene!.buildFence(index, () => judgeFarm(index, l, w));
       },
     });
@@ -565,6 +578,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   });
 
   function restart(): void {
+    docked = false;
     plans.length = 0;
     farms.length = 0;
     cardHandles.forEach((h) => h.destroy());
