@@ -33,6 +33,8 @@ export interface RooftopHandle {
   growFarm(index: number, count: number, onPlant: (planted: number) => void, onDone: () => void): void;
   /** Hide the other two farms and slide this one to the middle plot. */
   featureFarm(index: number, onDone: () => void): void;
+  /** Rebuild the featured farm as each size in turn, with its area shown; the last one gets a crown. */
+  showcaseAreas(sizes: { length: number; width: number }[], onDone: () => void): void;
   /** Show a finished farm's length and width labels, or hide them when index is null. */
   showFarmLabels(index: number | null): void;
   /** Show a farm and its patch of roof in black and white, so it reads as finished. */
@@ -96,6 +98,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       canDraw: () => false,
       growFarm: (_index, count, onPlant, onDone) => { onPlant(count); onDone(); },
       featureFarm: (_index, onDone) => onDone(),
+      showcaseAreas: (_sizes, onDone) => onDone(),
       showFarmLabels: () => undefined,
       setFarmGrey: () => undefined,
       focusFarm: () => undefined,
@@ -376,8 +379,11 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   geometries.add(stringGeometry);
   const stringMaterial = new THREE.LineBasicMaterial({ color: "#8b7f63" });
   materials.add(stringMaterial);
-  model.add(new THREE.Line(stringGeometry, stringMaterial));
-  for (const x of [-7, 3.05]) box(model, "#8a9d80", x, roofY + 1.25, -4.75, 0.07, 2.5, 0.07);
+  // Seen from straight above, the bunting is just a line across the third plot, so it hides while a fence is drawn.
+  const bunting = new THREE.Group();
+  model.add(bunting);
+  bunting.add(new THREE.Line(stringGeometry, stringMaterial));
+  for (const x of [-7, 3.05]) box(bunting, "#8a9d80", x, roofY + 1.25, -4.75, 0.07, 2.5, 0.07);
   const flagColors = ["#dc967b", "#edcc84", "#83b5a6", "#d9b3a1"];
   for (let i = 1; i <= 11; i += 1) {
     const t = i / 12;
@@ -390,7 +396,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const flag = new THREE.Mesh(flagGeometry, flagMaterial);
     flag.position.set(-7 + t * 10.05, roofY + 2.5 - Math.sin(t * Math.PI) * 0.59, -4.75);
     flag.castShadow = true;
-    model.add(flag);
+    bunting.add(flag);
   }
 
   // Auntie Mei: faceted straw hat, small round glasses and a sage watering can.
@@ -626,7 +632,23 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const shortMaterial = new THREE.MeshBasicMaterial({ color: "#d4573f" });
   materials.add(guideMaterial);
   materials.add(shortMaterial);
+  /** A faint 1 m grid over the plot while a fence is being drawn. */
+  const gridGroup = new THREE.Group();
+  gridGroup.visible = false;
+  model.add(gridGroup);
+  const gridMaterial = new THREE.MeshBasicMaterial({ color: "#b7a47c", transparent: true, opacity: 0.38 });
+  materials.add(gridMaterial);
+  for (let i = 0; i <= GRID; i += 1) {
+    for (const alongX of [true, false]) {
+      const line = new THREE.Mesh(boxGeometry, gridMaterial);
+      line.position.set(alongX ? GRID * fu / 2 : i * fu, 0.02, alongX ? i * fu : GRID * fu / 2);
+      line.scale.set(alongX ? GRID * fu : 0.014, 0.004, alongX ? 0.014 : GRID * fu);
+      gridGroup.add(line);
+    }
+  }
   function showGuide(index: number, guide: { length: number; width: number } | null): void {
+    gridGroup.position.copy(drawOrigin(index));
+    gridGroup.visible = true;
     guideGroup.clear();
     guideGroup.visible = !!guide;
     if (!guide) return;
@@ -670,9 +692,12 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   const handleGeometry = geometry("garden-handle", () => new THREE.SphereGeometry(1, 10, 8));
   const knob = mesh(controls, handleGeometry, "#e6b654", 0, 0.58, 0);
   knob.scale.setScalar(0.24);
+  // The pen replaces the ball on screen; the knob stays as the point the pen's nib touches.
+  knob.visible = false;
   const marker = document.createElement("span");
   marker.className = "rooftop-drag-handle";
-  marker.style.cssText = "position:absolute;display:grid;place-items:center;width:36px;height:36px;transform:translate(-50%,-50%);border:2px solid #fff9e8;border-radius:50%;background:#e6b654;color:#fffdf4;font:700 19px/1 sans-serif;box-shadow:0 3px 12px #24483830;";
+  marker.style.cssText = "position:absolute;display:grid;width:46px;height:46px;transform:translate(-3px,-43px);filter:drop-shadow(0 3px 5px #24483850);pointer-events:none;";
+  marker.innerHTML = `<svg viewBox="0 0 46 46" width="46" height="46" aria-hidden="true"><path d="M3 43 7 30 33 4a4 4 0 0 1 6 0l3 3a4 4 0 0 1 0 6L16 39z" fill="#e6b654" stroke="#24483a" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 30l9 9" stroke="#24483a" stroke-width="2.5"/><path d="M28 9l9 9" stroke="#24483a" stroke-width="2.5"/><path d="M3 43l2.2-7.2 5 5z" fill="#24483a"/></svg>`;
   overlay.append(marker);
   const sideLabels = [0, 1, 2, 3].map((side) => {
     const label = document.createElement("span");
@@ -764,16 +789,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     const local = handleLocal(draw);
     controls.position.copy(group.position);
     knob.position.copy(local);
-    const tipWorld = group.localToWorld(local.clone());
-    placeOverlay(marker, tipWorld);
-    if (draw.arrow === null) {
-      marker.textContent = "✥";
-    } else {
-      const from = tipWorld.clone().project(camera);
-      const to = group.localToWorld(local.clone().addScaledVector(sideDirs[draw.arrow]!, fu)).project(camera);
-      const angle = Math.atan2(-(to.y - from.y) * canvas.clientHeight, (to.x - from.x) * canvas.clientWidth) * 180 / Math.PI;
-      marker.innerHTML = `<span style="display:block;transform:rotate(${angle.toFixed(1)}deg)">➜</span>`;
-    }
+    placeOverlay(marker, group.localToWorld(local.clone()));
     // Labels sit outside the shape: away from the middle of everything drawn so far.
     const points = [new THREE.Vector3(), ...draw.sides.map((_s, i) => tipOf(draw!.sides, i + 1))];
     const centre = points.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(Math.max(1, points.length));
@@ -788,9 +804,23 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       label.style.display = "block";
     });
   }
-  const lineMaterial = new THREE.MeshBasicMaterial({ color: "#6b4f33" });
+  const lineMaterial = new THREE.MeshBasicMaterial({ color: "#24483a" });
+  const pegRimMaterial = new THREE.MeshBasicMaterial({ color: "#24483a" });
+  const pegMaterial = new THREE.MeshBasicMaterial({ color: "#f2c45f" });
   materials.add(lineMaterial);
-  /** While drawing: a string line with a peg at every metre. The fence is only built once the shape closes. */
+  materials.add(pegRimMaterial);
+  materials.add(pegMaterial);
+  const pegGeometry = geometry("draw-peg", () => new THREE.CylinderGeometry(1, 1, 1, 16));
+  function peg(x: number, z: number): void {
+    const rim = new THREE.Mesh(pegGeometry, pegRimMaterial);
+    rim.position.set(x, 0.1, z);
+    rim.scale.set(0.085, 0.04, 0.085);
+    const top = new THREE.Mesh(pegGeometry, pegMaterial);
+    top.position.set(x, 0.125, z);
+    top.scale.set(0.058, 0.02, 0.058);
+    previewGroup.add(rim, top);
+  }
+  /** While drawing: a bold line with a round peg at every metre, so each metre can be counted. The fence is only built once the shape closes. */
   function renderDrawPreview(): void {
     if (!draw) return;
     previewGroup.clear();
@@ -799,13 +829,13 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
       metresOf(draw.sides).forEach(({ from, dir }) => {
         const mid = from.clone().addScaledVector(dir, fu / 2);
         const line = new THREE.Mesh(boxGeometry, lineMaterial);
-        line.position.set(mid.x, 0.075, mid.z);
-        line.scale.set(dir.x ? fu : 0.035, 0.02, dir.z ? fu : 0.035);
+        line.position.set(mid.x, 0.08, mid.z);
+        line.scale.set(dir.x ? fu : 0.075, 0.03, dir.z ? fu : 0.075);
         previewGroup.add(line);
         const end = from.clone().addScaledVector(dir, fu);
-        cylinder(previewGroup, "#c9a26a", end.x, 0.12, end.z, 0.03, 0.03, 0.16, 5);
+        peg(end.x, end.z);
       });
-      cylinder(previewGroup, "#c9a26a", 0, 0.12, 0, 0.03, 0.03, 0.16, 5);
+      peg(0, 0);
     }
     controls.visible = !draw.closed;
     updateHandlePosition();
@@ -817,6 +847,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     topDown = false;
     controls.visible = false;
     guideGroup.visible = false;
+    gridGroup.visible = false;
+    bunting.visible = true;
     previewGroup.clear();
     canvas.style.pointerEvents = "none";
     marker.style.display = "none";
@@ -870,6 +902,8 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     canvas.style.pointerEvents = "none";
     canvas.style.cursor = "default";
     renderDrawPreview();
+    gridGroup.visible = false;
+    bunting.visible = true;
     topDown = false;
     moveCamera(draw.farm);
     // The grid starts at a corner, so a closed four-sided path is always [0, L] × [0, W].
@@ -904,6 +938,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     marker.style.display = draw && !draw.closed ? "grid" : "none";
     if (draw) updateHandlePosition();
     else placeFarmLabels();
+    placeAreaLabel();
   }
   let labelFarm: number | null = null;
   /** Length on the front edge, width on the right edge: the two sides facing the camera. */
@@ -1125,7 +1160,9 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   }
 
   /** Hide the other farms and slide this one, with its patch of roof, to the middle plot. */
+  let featured: number | null = null;
   function featureFarm(index: number, onDone: () => void): void {
+    featured = index;
     const shift = padCentres[1]!.z - padCentres[index]!.z;
     const group = farmGroups[index]!;
     const pad = farmPads[index]!;
@@ -1160,6 +1197,104 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     });
   }
 
+  /* ---------- Showcase: one fence, rebuilt as each farm in turn, with a crown on the biggest area ---------- */
+  const crown = new THREE.Group();
+  crown.visible = false;
+  scene.add(crown);
+  const crownGold = new THREE.MeshStandardMaterial({ color: "#f2c14e", roughness: 0.35, metalness: 0.45, flatShading: true });
+  const crownGem = new THREE.MeshStandardMaterial({ color: "#d4573f", roughness: 0.4, flatShading: true });
+  materials.add(crownGold);
+  materials.add(crownGem);
+  {
+    const band = new THREE.Mesh(geometry("crown-band", () => new THREE.CylinderGeometry(0.36, 0.32, 0.22, 10, 1, true)), crownGold);
+    band.material.side = THREE.DoubleSide;
+    crown.add(band);
+    const spike = geometry("crown-spike", () => new THREE.ConeGeometry(0.09, 0.26, 5));
+    const gem = geometry("crown-gem", () => new THREE.IcosahedronGeometry(0.045, 0));
+    for (let i = 0; i < 5; i += 1) {
+      const a = (i / 5) * Math.PI * 2;
+      const point = new THREE.Mesh(spike, crownGold);
+      point.position.set(Math.sin(a) * 0.33, 0.23, Math.cos(a) * 0.33);
+      crown.add(point);
+      const tip = new THREE.Mesh(gem, crownGem);
+      tip.position.set(Math.sin(a) * 0.33, 0.38, Math.cos(a) * 0.33);
+      crown.add(tip);
+    }
+    crown.traverse((part) => { if (part instanceof THREE.Mesh) part.castShadow = true; });
+  }
+  const areaLabel = document.createElement("span");
+  areaLabel.style.cssText = "position:absolute;display:none;padding:8px 14px;border-radius:12px;transform:translate(-50%,-100%);background:#fffdf8;border:2px solid #24483a;box-shadow:0 8px 22px -10px #17342180;color:#24483a;font:700 17px/1.2 sans-serif;white-space:nowrap;transition:background .25s,color .25s;";
+  overlay.append(areaLabel);
+  let areaText: string | null = null;
+  let areaWinner = false;
+  function placeAreaLabel(): void {
+    if (areaText === null || featured === null) { areaLabel.style.display = "none"; return; }
+    const { length, width } = farmDims[featured]!;
+    const above = farmGroups[featured]!.localToWorld(new THREE.Vector3(length * fu / 2, crown.visible ? 2.15 : 0.95, width * fu / 2));
+    placeOverlay(areaLabel, above, -8);
+    areaLabel.textContent = areaText;
+    areaLabel.style.background = areaWinner ? "#f2c14e" : "#fffdf8";
+    areaLabel.style.display = "block";
+  }
+  function showcaseAreas(sizes: { length: number; width: number }[], onDone: () => void): void {
+    const index = featured;
+    if (index === null || !sizes.length) { onDone(); return; }
+    const group = farmGroups[index]!;
+    const best = sizes.reduce((a, b) => (b.length * b.width > a.length * a.width ? b : a));
+    labelFarm = index;
+    const build = (size: { length: number; width: number }): void => {
+      farmDims[index] = { ...size };
+      farmCrop[index] = buildPlotInto(group, size.length, size.width, true);
+      paintGrey(index);
+      group.visible = true;
+      group.position.set(padCentres[1]!.x - size.length * fu / 2, roofY + 0.015, padCentres[1]!.z - size.width * fu / 2);
+      areaWinner = size === best;
+      areaText = `${size.length} m × ${size.width} m = ${size.length * size.width} m²${areaWinner ? " 👑" : ""}`;
+      crown.visible = areaWinner;
+    };
+    const centre = (): THREE.Vector3 => group.localToWorld(new THREE.Vector3(farmDims[index]!.length * fu / 2, 1.45, farmDims[index]!.width * fu / 2));
+    if (reducedMotion.matches) {
+      build(sizes[sizes.length - 1]!);
+      crown.position.copy(centre());
+      render();
+      onDone();
+      return;
+    }
+    const SINK = 320;
+    const RISE = 560;
+    const HOLD = 1150;
+    const STEP = SINK + RISE + HOLD;
+    let t0 = 0;
+    let shown = -1;
+    run((now) => {
+      if (destroyed || featured !== index) return true;
+      if (!t0) t0 = now;
+      const t = now - t0;
+      const step = Math.min(sizes.length - 1, Math.floor(t / STEP));
+      const local = t - step * STEP;
+      if (local < SINK && step !== shown) {
+        // The old fence sinks into the roof before the planks come back up in the new shape.
+        group.scale.set(1, Math.max(0.01, 1 - local / SINK), 1);
+        crown.visible = false;
+        areaText = null;
+        return false;
+      }
+      if (step !== shown) { build(sizes[step]!); shown = step; }
+      const rise = Math.min(1, Math.max(0, (local - SINK) / RISE));
+      group.scale.set(1, Math.max(0.01, backOut(rise)), 1);
+      if (crown.visible) {
+        const pop = Math.min(1, Math.max(0, (local - SINK - RISE * 0.6) / 420));
+        crown.position.copy(centre()).add(new THREE.Vector3(0, 0.25 * (1 - pop) + Math.sin(now / 380) * 0.04, 0));
+        crown.rotation.y = now / 900;
+        crown.scale.setScalar(Math.max(0.01, backOut(pop)) * 1.15);
+      }
+      if (step < sizes.length - 1 || local < SINK + RISE + 700) return false;
+      group.scale.set(1, 1, 1);
+      onDone();
+      return true;
+    });
+  }
+
   function setFarmGrey(index: number, grey: boolean): void {
     farmGrey[index] = grey;
     paintGrey(index);
@@ -1169,6 +1304,9 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
   function resetFarms(): void {
     endDraw();
     labelFarm = null;
+    featured = null;
+    areaText = null;
+    crown.visible = false;
     flyToken += 1;
     for (let i = 0; i < FARM_COUNT; i += 1) {
       farmGroups[i]!.clear();
@@ -1198,6 +1336,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     canvas.style.pointerEvents = "auto";
     options.onChange(0);
     renderDrawPreview();
+    bunting.visible = false;
     topDown = true;
     moveCamera(index);
   }
@@ -1447,6 +1586,7 @@ export function mountRooftop(host: HTMLElement): RooftopHandle {
     canDraw: () => true,
     growFarm,
     featureFarm,
+    showcaseAreas,
     showFarmLabels(index) {
       labelFarm = index;
       render();

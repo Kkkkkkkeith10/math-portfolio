@@ -95,7 +95,9 @@
 .g-pad__sheet{position:relative;width:min(640px,100%);display:grid;gap:.85rem;background:#fffdf8;border:1px solid #d9dfcf;border-top:10px solid #24483a;border-radius:14px;padding:1.2rem 1.4rem 1.3rem;box-shadow:0 30px 70px -35px #17352299;animation:g-up .45s both}
 .g-pad__tag{justify-self:start;margin:0;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--teal);background:var(--teal-soft);border-radius:99px;padding:.25rem .65rem}
 .g-pad__q{margin:0;font-size:1.1rem;line-height:1.45}
-.g-pad__work{border:1px solid #e0e4d8;border-radius:10px;overflow:hidden;background:#fff}
+.g-pad__work{position:relative;border:1px solid #e0e4d8;border-radius:10px;overflow:hidden;background:#fff}
+.g-pad__hint{position:absolute;left:50%;top:calc(50% + 24px);transform:translate(-50%,-50%);margin:0;font-size:1.15rem;font-weight:600;color:#9aa596;pointer-events:none;white-space:nowrap}
+.g-pad__hint[hidden]{display:none}
 .g-tools{display:flex;gap:.3rem;padding:.45rem;border-bottom:1px solid #eef0e8}
 .g-tools button{border:0;border-radius:7px;background:#f1f3ea;padding:.35rem .7rem;font-size:.8rem;min-height:34px}
 .g-tools button[aria-pressed=true]{background:var(--teal);color:#fff}

@@ -28,11 +28,12 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
           <p class="g-pad__tag">TSA-style question</p>
           <p class="g-pad__q" id="g-pad-q">A farmer has <b>24 m</b> of fence for a rectangular farm. He wants the <b>largest area</b>. How long should each side be?</p>
           <div class="g-pad__work">
+            <p class="g-pad__hint" id="g-hint" aria-hidden="true">Show your working here</p>
             <div class="g-tools" role="group" aria-label="Notepad tools"><button type="button" data-tool="pen" aria-pressed="true">✎ Pen</button><button type="button" data-tool="eraser" aria-pressed="false">Eraser</button><button type="button" id="g-undo">↶ Undo</button></div>
             <svg id="g-board" role="img" aria-label="Notepad: squared paper. Write your working here." data-lenis-prevent><defs><pattern id="g-grid" patternUnits="userSpaceOnUse" width="20" height="20"><path d="M20 0H0V20" fill="none" stroke="#e2e6dc"/></pattern></defs><rect width="100%" height="100%" fill="url(#g-grid)"/><g id="g-ink"></g></svg>
           </div>
           <p class="g-pad__result" id="g-result" aria-live="polite"></p>
-          <div class="g-pad__foot"><button type="button" class="g-btn" id="g-submit">Submit to AI</button><button type="button" class="g-link" id="g-restart">Play again</button><a href="#error" id="g-next" hidden>Next</a></div>
+          <div class="g-pad__foot"><button type="button" class="g-btn" id="g-submit">Submit to AI</button><button type="button" class="g-link" id="g-restart">Play again</button><a href="#world" id="g-next" hidden>Next</a></div>
         </div>
       </section>
     </div>
@@ -537,12 +538,14 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
     const best = sorted[sorted.length - 1]!;
     const bestIndex = plans.indexOf(best);
     const areas = sorted.map((p) => `<b>${p.area} m²</b>`);
+    const sizes = sorted.map((p) => ({ length: p.length, width: p.width }));
     const showBest = (): void => {
       $("g-bubble").hidden = true;
-      const answer = (): void => say(`The closer the length and width are, the bigger the area.<br>The square farm, <b>${best.length} m × ${best.width} m = ${best.area} m²</b>, is the biggest. So I'll build that one. Thank you!`, [{ label: "Next →", then: openPad }]);
-      if (scene) scene.featureFarm(bestIndex, () => scene?.walkToFarm(1, answer));
+      const answer = (): void => say(`The closer the length and width are, the bigger the area.<br>The square farm, <b>${best.length} m × ${best.width} m = ${best.area} m²</b>, is the biggest. So I'll build that one. Thank you!`, [{ label: "Next →", then: paperFirst }]);
+      if (scene) scene.featureFarm(bestIndex, () => scene?.walkToFarm(1, () => scene?.showcaseAreas(sizes, answer)));
       else answer();
     };
+    const paperFirst = (): void => say("Now a real TSA-style question. Grab a pen and <b>try it on paper first</b>. Then show your working on the grid.", [{ label: "I'm ready", then: openPad }]);
     say(`All three farms use the same <b>12 m</b> of fence, but their areas are different: ${areas[0]}, ${areas[1]} and ${areas[2]}.`, [{ label: "Why?", then: showBest }]);
   }
 
@@ -568,7 +571,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
       button.textContent = "✓ Sent";
       const result = $("g-result");
       result.className = "g-pad__result is-ok";
-      result.textContent = "Mission complete! Let's see what MathsAI finds in student working.";
+      result.textContent = "Mission complete! Next stop: Math Town.";
       window.setTimeout(() => {
         if (destroyed) return;
         if (document.fullscreenElement === root) void document.exitFullscreen().catch(() => undefined);
@@ -605,6 +608,7 @@ export function mountMission(container: HTMLElement): { destroy(): void } {
   }
   function drawInk(): void {
     inkLayer.replaceChildren();
+    $("g-hint").hidden = ink.length > 0;
     ink.forEach((points) => svgEl("polyline", { points: points.map(([x, y]) => `${x * boardWidth},${y * boardHeight}`).join(" "), class: "g-stroke" }, inkLayer));
   }
   function drawBoard(): void {
